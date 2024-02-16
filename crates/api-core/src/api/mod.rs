@@ -60,12 +60,21 @@ pub trait LocalMutateSessions {
     ) -> Result<(), CoreError>;
 }
 
+#[trait_variant::make(QueryVerificationToken: Send)]
+pub trait LocalQueryVerificationToken {
+    async fn get_verification_token(
+        &self,
+        token: impl AsRef<str> + Send + Debug,
+        identifier: impl AsRef<str> + Send + Debug,
+    ) -> Result<Option<VerificationToken>, CoreError>;
+}
+
 #[trait_variant::make(MutateVerificationToken: Send)]
 pub trait LocalMutateVerificationToken {
     async fn create_verification_token(
         &self,
         session: &VerificationToken,
-    ) -> Result<Account, CoreError>;
+    ) -> Result<VerificationToken, CoreError>;
     async fn use_verification_token(
         &self,
         identifier: impl AsRef<str> + Send + Debug,

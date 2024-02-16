@@ -5,12 +5,14 @@ use async_graphql::Enum;
 pub(crate) mod account;
 pub(crate) mod session;
 pub(crate) mod user;
+pub(crate) mod verification_token;
 
 #[derive(async_graphql::MergedObject, Default)]
 pub struct Mutation(
     user::UserMutation,
     account::AccountMutation,
     session::SessionMutation,
+    verification_token::VerificationTokenMutation,
 );
 
 #[derive(Enum, Eq, PartialEq, Copy, Clone, Debug)]

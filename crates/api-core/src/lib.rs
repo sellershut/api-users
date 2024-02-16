@@ -38,7 +38,9 @@ pub struct Session {
 #[cfg_attr(feature = "async-graphql", derive(InputObject, SimpleObject))]
 #[cfg_attr(feature = "async-graphql", graphql(input_name = "CategoryInput"))]
 pub struct VerificationToken {
-    pub identifier: Uuid,
+    #[cfg_attr(feature = "async-graphql", graphql(skip))]
+    pub id: Uuid,
+    pub identifier: String,
     pub token: String,
     pub expires: OffsetDateTime,
 }
@@ -48,6 +50,7 @@ pub struct VerificationToken {
 #[cfg_attr(feature = "async-graphql", derive(InputObject, SimpleObject))]
 #[cfg_attr(feature = "async-graphql", graphql(input_name = "CategoryInput"))]
 pub struct Account {
+    #[cfg_attr(feature = "async-graphql", graphql(skip_input))]
     pub id: Uuid,
     pub user: Uuid,
     #[cfg_attr(feature = "serde", serde(rename = "type"))]

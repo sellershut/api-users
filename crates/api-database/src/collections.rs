@@ -8,6 +8,7 @@ pub(crate) enum Collections {
     User,
     Session,
     Account,
+    VerificationToken,
 }
 
 impl std::fmt::Display for Collections {
@@ -19,6 +20,7 @@ impl std::fmt::Display for Collections {
                 Collections::User => "user",
                 Collections::Session => "session",
                 Collections::Account => "account",
+                Collections::VerificationToken => "verification_token",
             }
         )
     }

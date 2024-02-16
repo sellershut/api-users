@@ -1,4 +1,4 @@
-use api_core::{api::CoreError, reexports::uuid::Uuid, Account, Session, User};
+use api_core::{api::CoreError, reexports::uuid::Uuid, Account, Session, User, VerificationToken};
 use serde::{Deserialize, Serialize};
 use surrealdb::{opt::RecordId, sql::Id};
 use time::OffsetDateTime;
@@ -35,6 +35,28 @@ pub(crate) struct DatabaseEntityAccount {
     pub scope: String,
     pub session_state: String,
     pub token_type: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) struct DatabaseEntityVerificationToken {
+    pub id: RecordId,
+    pub identifier: String,
+    pub token: String,
+    pub expires: OffsetDateTime,
+}
+
+impl TryFrom<DatabaseEntityVerificationToken> for VerificationToken {
+    type Error = CoreError;
+
+    fn try_from(value: DatabaseEntityVerificationToken) -> Result<Self, Self::Error> {
+        let id = record_id_to_uuid(&value.id)?;
+        Ok(VerificationToken {
+            id,
+            identifier: value.identifier,
+            token: value.token,
+            expires: value.expires,
+        })
+    }
 }
 
 impl TryFrom<DatabaseEntityAccount> for Account {

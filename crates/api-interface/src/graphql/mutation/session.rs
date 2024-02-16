@@ -31,4 +31,16 @@ impl SessionMutation {
 
         Ok(database.update_session(session_token, &data).await?)
     }
+
+    #[instrument(skip(ctx), err(Debug))]
+    async fn delete_session(
+        &self,
+        ctx: &Context<'_>,
+        session_token: String,
+    ) -> async_graphql::Result<String> {
+        let database = ctx.data::<Client>()?;
+
+        database.delete_session(session_token).await?;
+        Ok(String::from("item deleted"))
+    }
 }

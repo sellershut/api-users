@@ -1,5 +1,6 @@
 mod account;
 mod session;
+mod verification_token;
 
 use api_core::{
     api::{CoreError, MutateUsers},
