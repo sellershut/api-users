@@ -1,0 +1,40 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[workspace.dependencies]
+anyhow = "1.0.79"
+api-core = { path = "./crates/api-core", default-features = false }
+api-database = { path = "./crates/api-database" }
+async-graphql = { version = "7.0.1", default-features = false }
+async-graphql-axum = { version = "7.0.1" }
+async-stream = "0.3.5"
+async-trait = "0.1.77"
+criterion = "0.5.1"
+dotenvy = "0.15.7"
+fake = "2.9.2"
+futures-channel = "0.3.30"
+futures-timer = "3.0.2"
+futures-util = "0.3.30"
+meilisearch-sdk = { version = "0.24.3", default-features = false }
+opentelemetry = "0.21.0"
+serde = "1.0.196"
+serde_json = "1.0.113"
+surrealdb = "1.1.1"
+thiserror = "1.0.56"
+time = "0.3.34"
+tokio = "1.36.0"
+tracing = "0.1.40"
+trait-variant = "0.1.1"
+uuid = "1.7.0"
+
+# https://github.com/meilisearch/meilisearch-rust/pull/524
+[patch.crates-io]
+meilisearch-sdk = { git = "https://github.com/rtkay123/meilisearch-rust", branch = "request_clients" }
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1

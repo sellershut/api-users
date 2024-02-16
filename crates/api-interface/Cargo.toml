@@ -1,0 +1,35 @@
+[package]
+name = "api-interface"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+api-core = { workspace = true, features = ["async-graphql"] }
+api-database.workspace = true
+async-graphql = { workspace = true, features = ["uuid"] }
+async-stream.workspace = true
+async-trait.workspace = true
+base64 = "0.21.7"
+futures-channel.workspace = true
+futures-timer.workspace = true
+futures-util.workspace = true
+once_cell = "1.19.0"
+opentelemetry.workspace = true
+slab = "0.4.9"
+thiserror.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+criterion = { workspace = true, features = ["async_tokio"] }
+dotenvy.workspace = true
+fake.workspace = true
+tokio = { workspace = true, features = ["macros"] }
+
+[[bench]]
+name = "graphql-interface"
+harness = false
+path = "../../benches/graphql-interface.rs"
