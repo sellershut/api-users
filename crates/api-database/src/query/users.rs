@@ -229,7 +229,7 @@ impl QueryUsers for Client {
 
     async fn search(
         &self,
-        query: impl AsRef<str> + Send + Debug,
+        _query: impl AsRef<str> + Send + Debug,
     ) -> Result<impl ExactSizeIterator<Item = User>, CoreError> {
         Ok(vec![].into_iter())
     }
@@ -250,19 +250,16 @@ impl QueryUsers for Client {
         match user {
             serde_json::Value::Object(obj) => {
                 let mut id = String::default();
-                let mut session_token = String::default();
                 let mut expires = String::default();
                 let mut user: Option<User> = None;
 
                 for (key, value) in obj.iter() {
                     match key.as_str() {
-                        "session_token" | "id" | "expires" => {
+                        "id" | "expires_at" => {
                             if let serde_json::Value::String(my_id) = value {
                                 if key == "id" {
                                     id = my_id.to_owned();
-                                } else if key == "session_token" {
-                                    session_token = my_id.to_owned();
-                                } else if key == "expires" {
+                                } else if key == "expires_at" {
                                     expires = my_id.to_owned();
                                 }
                             } else {
@@ -298,8 +295,7 @@ impl QueryUsers for Client {
                 let session = Session {
                     id: record_id_to_uuid(&id)?,
                     user: user.id,
-                    expires,
-                    session_token,
+                    expires_at: expires,
                 };
 
                 Ok(Some((user, session)))

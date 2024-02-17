@@ -2,6 +2,7 @@ use api_core::{
     api::{CoreError, MutateSessions},
     Session,
 };
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use surrealdb::opt::RecordId;
 use time::OffsetDateTime;
@@ -29,48 +30,58 @@ impl MutateSessions for Client {
 
     async fn update_session(
         &self,
-        session_token: impl AsRef<str> + Send + Debug,
-        session: &Session,
+        id: impl AsRef<str> + Send + Debug,
+        expires_at: &OffsetDateTime,
     ) -> Result<Option<Session>, CoreError> {
-        let mut item = self
+        #[derive(Serialize, Deserialize)]
+        struct Document {
+            expires_at: OffsetDateTime,
+        }
+
+        let resp: Option<DatabaseEntitySession> = self
             .client
-            .query(format!(
-                "SELECT * FROM {} WHERE session_token = {}",
-                Collections::Session,
-                session_token.as_ref()
-            ))
+            .update((Collections::Session.to_string(), id.as_ref().to_owned()))
+            .merge(Document {
+                expires_at: expires_at.to_owned(),
+            })
             .await
             .map_err(map_db_error)?;
 
-        let resp: Option<DatabaseEntitySession> = item.take(0).map_err(map_db_error)?;
-        if let Some(session_value) = resp {
-            let id = &session_value.id;
-            let ret_val: Option<DatabaseEntitySession> = self
-                .client
-                .update(id)
-                .content(session)
-                .await
-                .map_err(map_db_error)?;
-
-            let res = match ret_val {
-                Some(e) => Some(Session::try_from(e)?),
-                None => None,
-            };
-
-            Ok(res)
-        } else {
-            Err(CoreError::Database("Session does not exist".to_string()))
-        }
+        let res = match resp {
+            Some(res) => Some(Session::try_from(res)?),
+            None => None,
+        };
+        Ok(res)
     }
 
-    async fn delete_session(
+    async fn delete_session(&self, id: impl AsRef<str> + Send + Debug) -> Result<(), CoreError> {
+        let _resp: Option<DatabaseEntitySession> = self
+            .client
+            .delete((Collections::Session.to_string(), id.as_ref().to_string()))
+            .await
+            .map_err(map_db_error)?;
+        Ok(())
+    }
+
+    async fn delete_user_sessions(
         &self,
-        session_token: impl AsRef<str> + Send + Debug,
+        user_id: impl AsRef<str> + Send + Debug,
     ) -> Result<(), CoreError> {
-        let session_token = session_token.as_ref();
+        let user_id = user_id.as_ref();
         self.client
             .query(format!(
-                "DELETE {} WHERE session_token = {session_token} ",
+                "DELETE * FROM {} WHERE user_id = {user_id}",
+                Collections::Session
+            ))
+            .await
+            .map_err(map_db_error)?;
+        Ok(())
+    }
+
+    async fn delete_expired_sessions(&self) -> Result<(), CoreError> {
+        self.client
+            .query(format!(
+                "DELETE * FROM {} WHERE expires_at <= time::now()",
                 Collections::Session
             ))
             .await
@@ -81,25 +92,18 @@ impl MutateSessions for Client {
 
 #[derive(serde::Serialize)]
 struct InputSession<'a> {
-    id: RecordId,
     user: RecordId,
-    expires: &'a OffsetDateTime,
-    session_token: &'a str,
+    expires_at: &'a OffsetDateTime,
 }
 
 impl<'a> From<&'a Session> for InputSession<'a> {
     fn from(value: &'a Session) -> Self {
         Self {
-            id: RecordId::from((
-                Collections::Session.to_string().as_str(),
-                value.id.to_string().as_str(),
-            )),
             user: RecordId::from((
                 Collections::User.to_string().as_str(),
                 value.user.to_string().as_str(),
             )),
-            expires: &value.expires,
-            session_token: &value.session_token,
+            expires_at: &value.expires_at,
         }
     }
 }

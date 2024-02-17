@@ -2,10 +2,9 @@ use async_graphql::connection::{Connection, EmptyFields};
 
 pub(crate) mod pagination;
 pub(crate) mod user;
-pub(crate) mod verification_token;
 
 #[derive(async_graphql::MergedObject, Default)]
-pub struct Query(user::UserQuery, verification_token::VerificationTokenQuery);
+pub struct Query(user::UserQuery);
 
 pub(crate) type ConnectionResult<T> = async_graphql::Result<
     Connection<pagination::Base64Cursor, T, pagination::ConnectionFields, EmptyFields>,

@@ -1,6 +1,5 @@
 mod account;
 mod session;
-mod verification_token;
 
 use api_core::{
     api::{CoreError, MutateUsers},
@@ -8,21 +7,20 @@ use api_core::{
     User,
 };
 use surrealdb::sql::Thing;
-use time::OffsetDateTime;
 use tracing::instrument;
 
 use crate::{collections::Collections, entity::DatabaseEntityUser, map_db_error, Client};
 
 impl MutateUsers for Client {
     #[instrument(skip(self), err(Debug))]
-    async fn create_user(&self, category: &User) -> Result<User, CoreError> {
-        let input_category = InputUser::from(category);
+    async fn create_user(&self, user: &User) -> Result<User, CoreError> {
+        let input_user = InputUser::from(user);
 
         let id = Uuid::now_v7().to_string();
         let item: Option<DatabaseEntityUser> = self
             .client
-            .create(("category", id))
-            .content(input_category)
+            .create((Collections::User.to_string(), id))
+            .content(input_user)
             .await
             .map_err(map_db_error)?;
 
@@ -39,12 +37,12 @@ impl MutateUsers for Client {
             id.to_string().as_str(),
         ));
 
-        let input_category = InputUser::from(data);
+        let input_user = InputUser::from(data);
 
         let item: Option<DatabaseEntityUser> = self
             .client
             .update(id)
-            .content(input_category)
+            .content(input_user)
             .await
             .map_err(map_db_error)?;
         let res = match item {
@@ -74,19 +72,13 @@ impl MutateUsers for Client {
 
 #[derive(serde::Serialize)]
 struct InputUser<'a> {
-    name: Option<&'a str>,
-    image: Option<&'a str>,
-    email: &'a str,
-    email_verified: Option<&'a OffsetDateTime>,
+    username: &'a str,
 }
 
 impl<'a> From<&'a User> for InputUser<'a> {
     fn from(value: &'a User) -> Self {
         Self {
-            name: value.name.as_deref(),
-            image: value.image.as_deref(),
-            email: &value.email,
-            email_verified: value.email_verified.as_ref(),
+            username: &value.username,
         }
     }
 }

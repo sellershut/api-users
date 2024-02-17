@@ -11,7 +11,7 @@ pub struct UserQuery;
 
 #[derive(SimpleObject)]
 pub struct SearchResult {
-    category: User,
+    user: User,
     parent_name: Option<String>,
 }
 

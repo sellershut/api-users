@@ -1,9 +1,10 @@
 mod error;
 pub use std::fmt::Debug;
 
-use crate::{Account, Session, User, VerificationToken};
+use crate::{Account, Session, User};
 
 pub use error::*;
+use time::OffsetDateTime;
 pub use uuid::Uuid;
 
 #[trait_variant::make(QueryUsers: Send)]
@@ -46,38 +47,26 @@ pub trait LocalMutateAccounts {
     ) -> Result<(), CoreError>;
 }
 
+#[trait_variant::make(QuerySessions: Send)]
+pub trait LocalQuerySessions {
+    async fn get_user_sessions(
+        &self,
+        user_id: impl AsRef<str> + Send + Debug,
+    ) -> Result<impl ExactSizeIterator<Item = Session>, CoreError>;
+}
+
 #[trait_variant::make(MutateSessions: Send)]
 pub trait LocalMutateSessions {
     async fn create_session(&self, session: &Session) -> Result<Session, CoreError>;
     async fn update_session(
         &self,
-        session_token: impl AsRef<str> + Send + Debug,
-        session: &Session,
+        id: impl AsRef<str> + Send + Debug,
+        expires_at: &OffsetDateTime,
     ) -> Result<Option<Session>, CoreError>;
-    async fn delete_session(
+    async fn delete_session(&self, id: impl AsRef<str> + Send + Debug) -> Result<(), CoreError>;
+    async fn delete_user_sessions(
         &self,
-        session_token: impl AsRef<str> + Send + Debug,
+        user_id: impl AsRef<str> + Send + Debug,
     ) -> Result<(), CoreError>;
-}
-
-#[trait_variant::make(QueryVerificationToken: Send)]
-pub trait LocalQueryVerificationToken {
-    async fn get_verification_token(
-        &self,
-        token: impl AsRef<str> + Send + Debug,
-        identifier: impl AsRef<str> + Send + Debug,
-    ) -> Result<Option<VerificationToken>, CoreError>;
-}
-
-#[trait_variant::make(MutateVerificationToken: Send)]
-pub trait LocalMutateVerificationToken {
-    async fn create_verification_token(
-        &self,
-        session: &VerificationToken,
-    ) -> Result<VerificationToken, CoreError>;
-    async fn use_verification_token(
-        &self,
-        identifier: impl AsRef<str> + Send + Debug,
-        token: impl AsRef<str> + Send + Debug,
-    ) -> Result<Option<VerificationToken>, CoreError>;
+    async fn delete_expired_sessions(&self) -> Result<(), CoreError>;
 }
