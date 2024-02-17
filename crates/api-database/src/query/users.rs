@@ -3,10 +3,11 @@ use api_core::{
     reexports::uuid::Uuid,
     Session, User,
 };
-use std::{fmt::Debug, str::FromStr};
-use surrealdb::sql::Thing;
+use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
+use surrealdb::{opt::RecordId, sql::Thing};
 use time::OffsetDateTime;
-use tracing::{debug, error, instrument};
+use tracing::{debug, error, instrument, trace};
 
 use crate::{
     collections::Collections,
@@ -186,7 +187,13 @@ impl QueryUsers for Client {
     ) -> Result<Option<User>, CoreError> {
         let provider = provider.as_ref();
         let provider_account_id = provider_account_id.as_ref();
-        let stmt = format!("SELECT user.*.* FROM {} WHERE provider_account_id = '{provider_account_id}' AND provider = '{provider_account_id}' FETCH user_id", Collections::Account);
+
+        #[derive(Deserialize, Serialize)]
+        struct RetVal {
+            user: DatabaseEntityUser,
+        }
+
+        let stmt = format!("SELECT user FROM {} WHERE provider_account_id = '{provider_account_id}' AND provider = '{provider}' FETCH user", Collections::Account);
         if let Some((ref redis, ttl)) = self.redis {
             let cache_key = CacheKey::UserByAccount {
                 provider,
@@ -197,15 +204,15 @@ impl QueryUsers for Client {
             if let Some(user) = user {
                 Ok(user)
             } else {
-                let mut user = self.client.query(stmt).await.map_err(map_db_error)?;
-                let user: Option<DatabaseEntityUser> = user.take(0).map_err(map_db_error)?;
-                let user = user.and_then(|f| match User::try_from(f) {
-                    Ok(cat) => Some(cat),
-                    Err(e) => {
-                        error!("{e}");
-                        None
-                    }
-                });
+                let mut user_response = self.client.query(stmt).await.map_err(map_db_error)?;
+                let mut user_query: Vec<RetVal> = user_response.take(0).map_err(map_db_error)?;
+                let user = if user_query.is_empty() {
+                    None
+                } else {
+                    let a = user_query.swap_remove(0);
+                    let user = a.user;
+                    Some(User::try_from(user)?)
+                };
 
                 if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), ttl).await {
                     error!(key = %cache_key, "[redis update]: {e}");
@@ -213,15 +220,15 @@ impl QueryUsers for Client {
                 Ok(user)
             }
         } else {
-            let mut user = self.client.query(stmt).await.map_err(map_db_error)?;
-            let user: Option<DatabaseEntityUser> = user.take(0).map_err(map_db_error)?;
-            let user = user.and_then(|f| match User::try_from(f) {
-                Ok(cat) => Some(cat),
-                Err(e) => {
-                    error!("{e}");
-                    None
-                }
-            });
+            let mut user_response = self.client.query(stmt).await.map_err(map_db_error)?;
+            let mut user_query: Vec<RetVal> = user_response.take(0).map_err(map_db_error)?;
+            let user = if user_query.is_empty() {
+                None
+            } else {
+                let a = user_query.swap_remove(0);
+                let user = a.user;
+                Some(User::try_from(user)?)
+            };
 
             Ok(user)
         }
@@ -240,69 +247,90 @@ impl QueryUsers for Client {
     ) -> Result<Option<(User, Session)>, CoreError> {
         let session_token = session_token.as_ref();
         let stmt = format!(
-            "SELECT *, user*.*. FROM {} WHERE session_token = '{session_token}' FETCH user_id",
+            "SELECT *, user FROM {} WHERE session_token = '{session_token}' FETCH user",
             Collections::Session
         );
         let mut session = self.client.query(stmt).await.map_err(map_db_error)?;
         let user: Option<serde_json::Value> = session.take(0).map_err(map_db_error)?;
-        dbg!(&user);
-        let user = user.unwrap();
-        match user {
-            serde_json::Value::Object(obj) => {
-                let mut id = String::default();
-                let mut expires = String::default();
-                let mut user: Option<User> = None;
+        trace!("user: {user:?}");
 
-                for (key, value) in obj.iter() {
-                    match key.as_str() {
-                        "id" | "expires_at" => {
-                            if let serde_json::Value::String(my_id) = value {
-                                if key == "id" {
-                                    id = my_id.to_owned();
-                                } else if key == "expires_at" {
-                                    expires = my_id.to_owned();
+        if let Some(user) = user {
+            match user {
+                serde_json::Value::Object(obj) => {
+                    let mut id = None;
+                    let mut expires: Option<OffsetDateTime> = None;
+                    let mut session_token = String::default();
+                    let mut user: Option<DatabaseEntityUser> = None;
+
+                    for (key, value) in obj.into_iter() {
+                        match key.as_str() {
+                            "id" => {
+                                trace!("deserialising id: {value:?}");
+                                let id_val: RecordId =
+                                    serde_json::from_value(value).map_err(|_| {
+                                        CoreError::Other("deserialise session id".to_owned())
+                                    })?;
+                                trace!("id ok");
+                                id = Some(id_val);
+                            }
+                            "session_token" => {
+                                trace!("deserialising session: {value:?}");
+                                if let serde_json::Value::String(my_id) = value {
+                                    session_token = my_id;
+                                } else {
+                                    error!(key = %key.as_str(), "{value} which is not a string");
                                 }
-                            } else {
-                                error!("id is {value} which is not a string");
-                                unreachable!("this key type should not exist");
+                                trace!("session ok");
                             }
-                        }
-                        "user" => {
-                            if let serde_json::Value::Object(_) = value {
-                                user = Some(
-                                    serde_json::from_value(value.clone())
-                                        .map_err(|e| CoreError::Other(e.to_string()))?,
-                                );
-                            } else {
-                                error!("id is {value} which is not a string");
-                                unreachable!("this key type should not exist");
+                            "expires_at" => {
+                                trace!("sorting time: {value:?}");
+                                expires = Some(serde_json::from_value(value).map_err(|_| {
+                                    CoreError::Other("Could not deserialise time".to_owned())
+                                })?);
+                                trace!("time ok");
                             }
-                        }
-                        _ => {
-                            error!("{key} should not exist in sessions");
-                            unreachable!("this key should not exist");
+                            "user" => {
+                                trace!("deserialising user: {value:?}");
+                                if let serde_json::Value::Object(_) = value {
+                                    user = Some(
+                                        serde_json::from_value(value)
+                                            .map_err(|e| CoreError::Other(e.to_string()))?,
+                                    );
+                                } else {
+                                    error!("{key} should not exist in sessions");
+                                    unreachable!("this key type should not exist");
+                                }
+                                trace!("user ok");
+                            }
+                            _ => {
+                                error!("{key} should not exist in sessions");
+                                unreachable!("this key should not exist");
+                            }
                         }
                     }
+                    let id = id.expect("to exist");
+
+                    let user = user.expect("user to exist for every session");
+                    let id = record_id_to_uuid(&id)?;
+
+                    let user = User::try_from(user)?;
+                    trace!("after {}", id);
+
+                    let session = Session {
+                        id,
+                        user: user.id,
+                        expires_at: expires.expect("to exist"),
+                        session_token,
+                    };
+
+                    Ok(Some((user, session)))
                 }
-                let id = Thing::from_str(&id).map_err(|_| {
-                    CoreError::Database("could not map id to internal type".to_string())
-                })?;
-
-                let user = user.expect("user to exist for every session");
-
-                let expires: OffsetDateTime = serde_json::from_str(&expires).unwrap();
-
-                let session = Session {
-                    id: record_id_to_uuid(&id)?,
-                    user: user.id,
-                    expires_at: expires,
-                };
-
-                Ok(Some((user, session)))
+                _ => Err(CoreError::Database(
+                    "The query returned an unexpected type".to_owned(),
+                )),
             }
-            _ => Err(CoreError::Database(
-                "The query returned an unexpected type".to_owned(),
-            )),
+        } else {
+            Ok(None)
         }
     }
 }

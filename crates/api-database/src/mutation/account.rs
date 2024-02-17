@@ -12,17 +12,34 @@ impl MutateAccounts for Client {
     async fn link_account(&self, account: &Account) -> Result<Account, CoreError> {
         let input_account = InputAccount::from(account);
 
-        let id = Uuid::now_v7().to_string();
-        let item: Option<DatabaseEntityAccount> = self
+        let mut resp = self
             .client
-            .create((Collections::Account.to_string(), id))
-            .content(input_account)
+            .query(format!(
+                "SELECT * FROM {} where provider = '{}' AND provider_account_id = '{}'",
+                Collections::Account,
+                account.provider,
+                account.provider_account_id
+            ))
             .await
             .map_err(map_db_error)?;
 
-        match item {
-            Some(e) => Account::try_from(e),
-            None => Err(CoreError::Unreachable),
+        let account: Vec<DatabaseEntityAccount> = resp.take(0).map_err(map_db_error)?;
+        if let Some(first) = account.first() {
+            let value = first.clone();
+            Account::try_from(value)
+        } else {
+            let id = Uuid::now_v7().to_string();
+            let item: Option<DatabaseEntityAccount> = self
+                .client
+                .create((Collections::Account.to_string(), id))
+                .content(input_account)
+                .await
+                .map_err(map_db_error)?;
+
+            match item {
+                Some(e) => Account::try_from(e),
+                None => Err(CoreError::Unreachable),
+            }
         }
     }
 

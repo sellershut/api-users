@@ -38,20 +38,37 @@ impl MutateSessions for Client {
             expires_at: OffsetDateTime,
         }
 
-        let resp: Option<DatabaseEntitySession> = self
+        let session_token = id.as_ref();
+
+        let mut resp = self
             .client
-            .update((Collections::Session.to_string(), id.as_ref().to_owned()))
-            .merge(Document {
-                expires_at: expires_at.to_owned(),
-            })
+            .query(format!(
+                "SELECT * FROM {} WHERE session_token = '{session_token}' LIMIT 1",
+                Collections::Session
+            ))
             .await
             .map_err(map_db_error)?;
 
-        let res = match resp {
-            Some(res) => Some(Session::try_from(res)?),
-            None => None,
-        };
-        Ok(res)
+        let resp: Option<DatabaseEntitySession> = resp.take(0).map_err(map_db_error)?;
+
+        if let Some(session) = resp {
+            let resp: Option<DatabaseEntitySession> = self
+                .client
+                .update(session.id)
+                .merge(Document {
+                    expires_at: expires_at.to_owned(),
+                })
+                .await
+                .map_err(map_db_error)?;
+
+            let res = match resp {
+                Some(res) => Some(Session::try_from(res)?),
+                None => None,
+            };
+            Ok(res)
+        } else {
+            Ok(None)
+        }
     }
 
     async fn delete_session(&self, id: impl AsRef<str> + Send + Debug) -> Result<(), CoreError> {
@@ -94,6 +111,7 @@ impl MutateSessions for Client {
 struct InputSession<'a> {
     user: RecordId,
     expires_at: &'a OffsetDateTime,
+    session_token: &'a str,
 }
 
 impl<'a> From<&'a Session> for InputSession<'a> {
@@ -104,6 +122,7 @@ impl<'a> From<&'a Session> for InputSession<'a> {
                 value.user.to_string().as_str(),
             )),
             expires_at: &value.expires_at,
+            session_token: &value.session_token,
         }
     }
 }

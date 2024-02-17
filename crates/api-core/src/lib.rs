@@ -28,6 +28,7 @@ pub struct Session {
     pub id: Uuid,
     pub user: Uuid,
     pub expires_at: OffsetDateTime,
+    pub session_token: String,
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Clone)]

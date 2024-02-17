@@ -14,9 +14,10 @@ pub(crate) struct DatabaseEntitySession {
     pub id: RecordId,
     pub user: RecordId,
     pub expires_at: OffsetDateTime,
+    pub session_token: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct DatabaseEntityAccount {
     pub id: RecordId,
     pub user: RecordId,
@@ -51,6 +52,7 @@ impl TryFrom<DatabaseEntitySession> for Session {
             id,
             user,
             expires_at: value.expires_at,
+            session_token: value.session_token,
         })
     }
 }
