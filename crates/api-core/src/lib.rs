@@ -25,7 +25,7 @@ pub struct User {
 #[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "async-graphql", derive(InputObject, SimpleObject))]
-#[cfg_attr(feature = "async-graphql", graphql(input_name = "CategoryInput"))]
+#[cfg_attr(feature = "async-graphql", graphql(input_name = "SessionInput"))]
 pub struct Session {
     pub id: Uuid,
     pub user: Uuid,
@@ -36,7 +36,10 @@ pub struct Session {
 #[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "async-graphql", derive(InputObject, SimpleObject))]
-#[cfg_attr(feature = "async-graphql", graphql(input_name = "CategoryInput"))]
+#[cfg_attr(
+    feature = "async-graphql",
+    graphql(input_name = "VerificationTokenInput")
+)]
 pub struct VerificationToken {
     #[cfg_attr(feature = "async-graphql", graphql(skip))]
     pub id: Uuid,
@@ -48,7 +51,7 @@ pub struct VerificationToken {
 #[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "async-graphql", derive(InputObject, SimpleObject))]
-#[cfg_attr(feature = "async-graphql", graphql(input_name = "CategoryInput"))]
+#[cfg_attr(feature = "async-graphql", graphql(input_name = "AccountInput"))]
 pub struct Account {
     #[cfg_attr(feature = "async-graphql", graphql(skip_input))]
     pub id: Uuid,

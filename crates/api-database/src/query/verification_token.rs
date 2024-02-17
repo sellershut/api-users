@@ -18,7 +18,7 @@ impl QueryVerificationToken for Client {
         let mut resp = self
             .client
             .query(format!(
-                "SELECT * FROM {} WHERE token = {token} AND identifier = {identifier}",
+                "SELECT * FROM {} WHERE token = '{token}' AND identifier = '{identifier}'",
                 Collections::VerificationToken
             ))
             .await

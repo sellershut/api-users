@@ -22,7 +22,7 @@ impl Display for CacheKey<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "categories:{}",
+            "users:{}",
             match self {
                 CacheKey::AllUsers => "all".to_string(),
                 CacheKey::UserById { id } => format!("id={id}"),

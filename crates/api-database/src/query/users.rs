@@ -83,9 +83,9 @@ impl QueryUsers for Client {
         if let Some((ref redis, ttl)) = self.redis {
             let cache_key = CacheKey::UserById { id };
 
-            let user = redis_query::query::<User>(cache_key, redis).await;
+            let user = redis_query::query::<Option<User>>(cache_key, redis).await;
 
-            if user.is_some() {
+            if let Some(user) = user {
                 Ok(user)
             } else {
                 let id = create_id(id);
@@ -130,15 +130,15 @@ impl QueryUsers for Client {
         if let Some((ref redis, ttl)) = self.redis {
             let cache_key = CacheKey::UserByEmail { email };
 
-            let user = redis_query::query::<User>(cache_key, redis).await;
+            let user = redis_query::query::<Option<User>>(cache_key, redis).await;
 
-            if user.is_some() {
+            if let Some(user) = user {
                 Ok(user)
             } else {
                 let mut user = self
                     .client
                     .query(format!(
-                        "SELECT * FROM {} WHERE email = {email}",
+                        "SELECT * FROM {} WHERE email = '{email}'",
                         Collections::User
                     ))
                     .await
@@ -161,7 +161,7 @@ impl QueryUsers for Client {
             let mut user = self
                 .client
                 .query(format!(
-                    "SELECT * FROM {} WHERE email = {email}",
+                    "SELECT * FROM {} WHERE email = '{email}'",
                     Collections::User
                 ))
                 .await
@@ -186,16 +186,15 @@ impl QueryUsers for Client {
     ) -> Result<Option<User>, CoreError> {
         let provider = provider.as_ref();
         let provider_account_id = provider_account_id.as_ref();
-        let stmt = format!("SELECT user_id FROM {} WHERE provider_account_id = {provider_account_id} AND provider = {provider_account_id} FETCH user_id", Collections::Account);
+        let stmt = format!("SELECT user.*.* FROM {} WHERE provider_account_id = '{provider_account_id}' AND provider = '{provider_account_id}' FETCH user_id", Collections::Account);
         if let Some((ref redis, ttl)) = self.redis {
             let cache_key = CacheKey::UserByAccount {
                 provider,
                 provider_account_id,
             };
 
-            let user = redis_query::query::<User>(cache_key, redis).await;
-
-            if user.is_some() {
+            let user = redis_query::query::<Option<User>>(cache_key, redis).await;
+            if let Some(user) = user {
                 Ok(user)
             } else {
                 let mut user = self.client.query(stmt).await.map_err(map_db_error)?;
@@ -241,7 +240,7 @@ impl QueryUsers for Client {
     ) -> Result<Option<(User, Session)>, CoreError> {
         let session_token = session_token.as_ref();
         let stmt = format!(
-            "SELECT *, user*.*. FROM {} WHERE session_token = {session_token} FETCH user_id",
+            "SELECT *, user*.*. FROM {} WHERE session_token = '{session_token}' FETCH user_id",
             Collections::Session
         );
         let mut session = self.client.query(stmt).await.map_err(map_db_error)?;
