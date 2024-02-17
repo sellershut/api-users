@@ -7,6 +7,9 @@ use time::OffsetDateTime;
 pub(crate) struct DatabaseEntityUser {
     pub id: RecordId,
     pub username: String,
+    pub email: Option<String>,
+    pub name: Option<String>,
+    pub avatar: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -66,6 +69,9 @@ impl TryFrom<DatabaseEntityUser> for User {
         Ok(User {
             id,
             username: entity.username,
+            email: entity.email,
+            name: entity.name,
+            avatar: entity.avatar,
         })
     }
 }

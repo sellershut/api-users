@@ -17,6 +17,9 @@ pub struct User {
     #[cfg_attr(feature = "async-graphql", graphql(skip_input))]
     pub id: Uuid,
     pub username: String,
+    pub email: Option<String>,
+    pub name: Option<String>,
+    pub avatar: Option<String>,
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Clone)]

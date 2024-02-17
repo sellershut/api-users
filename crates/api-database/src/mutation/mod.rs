@@ -73,12 +73,18 @@ impl MutateUsers for Client {
 #[derive(serde::Serialize)]
 struct InputUser<'a> {
     username: &'a str,
+    email: Option<&'a str>,
+    name: Option<&'a str>,
+    avatar: Option<&'a str>,
 }
 
 impl<'a> From<&'a User> for InputUser<'a> {
     fn from(value: &'a User) -> Self {
         Self {
             username: &value.username,
+            email: value.email.as_deref(),
+            name: value.name.as_deref(),
+            avatar: value.avatar.as_deref(),
         }
     }
 }
