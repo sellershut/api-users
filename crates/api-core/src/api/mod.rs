@@ -51,7 +51,7 @@ pub trait LocalMutateAccounts {
 pub trait LocalQuerySessions {
     async fn get_user_sessions(
         &self,
-        user_id: impl AsRef<str> + Send + Debug,
+        user_id: &Uuid,
     ) -> Result<impl ExactSizeIterator<Item = Session>, CoreError>;
 }
 
