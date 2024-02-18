@@ -13,7 +13,6 @@ use crate::{collections::Collections, entity::DatabaseEntitySession, map_db_erro
 impl MutateSessions for Client {
     async fn create_session(&self, session: &Session) -> Result<Session, CoreError> {
         let input_session = InputSession::from(session);
-
         let id = Uuid::now_v7().to_string();
         let item: Option<DatabaseEntitySession> = self
             .client
@@ -22,10 +21,22 @@ impl MutateSessions for Client {
             .await
             .map_err(map_db_error)?;
 
-        match item {
+        let session = match item {
             Some(e) => Session::try_from(e),
             None => Err(CoreError::Unreachable),
-        }
+        }?;
+
+        /* let cache_key = CacheKey::Session {
+            token: &session.session_token,
+        };
+
+        if let Some((ref redis_pool, _)) = self.redis {
+            if let Err(e) = redis_query::update(cache_key, redis_pool, &session, 86400000).await {
+                error!(key = %cache_key, "[redis update]: {e}");
+            }
+        } */
+
+        Ok(session)
     }
 
     async fn update_session(

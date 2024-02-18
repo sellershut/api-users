@@ -44,14 +44,10 @@ fn bench(c: &mut Criterion) {
         avatar: None,
     };
 
-    c.bench_with_input(
-        BenchmarkId::new("user insert", size),
-        &size,
-        |b, &_s| {
-            b.to_async(&rt)
-                .iter(|| black_box(client.create_user(&user)));
-        },
-    );
+    c.bench_with_input(BenchmarkId::new("user insert", size), &size, |b, &_s| {
+        b.to_async(&rt)
+            .iter(|| black_box(client.create_user(&user)));
+    });
 
     // should probably clean everything after inserting
 }

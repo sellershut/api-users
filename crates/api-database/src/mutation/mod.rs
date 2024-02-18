@@ -4,9 +4,10 @@ mod session;
 use api_core::{
     api::{CoreError, MutateUsers},
     reexports::uuid::Uuid,
-    User,
+    User, UserType,
 };
 use surrealdb::sql::Thing;
+use time::OffsetDateTime;
 use tracing::instrument;
 
 use crate::{collections::Collections, entity::DatabaseEntityUser, map_db_error, Client};
@@ -76,6 +77,8 @@ struct InputUser<'a> {
     email: Option<&'a str>,
     name: Option<&'a str>,
     avatar: Option<&'a str>,
+    user_type: UserType,
+    created_at: &'a OffsetDateTime,
 }
 
 impl<'a> From<&'a User> for InputUser<'a> {
@@ -85,6 +88,8 @@ impl<'a> From<&'a User> for InputUser<'a> {
             email: value.email.as_deref(),
             name: value.name.as_deref(),
             avatar: value.avatar.as_deref(),
+            user_type: value.user_type,
+            created_at: &value.created_at,
         }
     }
 }

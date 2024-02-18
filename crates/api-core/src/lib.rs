@@ -20,6 +20,23 @@ pub struct User {
     pub email: Option<String>,
     pub name: Option<String>,
     pub avatar: Option<String>,
+    pub user_type: UserType,
+    pub phone_number: Option<String>,
+    #[cfg_attr(feature = "async-graphql", graphql(default_with = "my_default()"))]
+    pub created_at: OffsetDateTime,
+    pub updated_at: Option<OffsetDateTime>,
+}
+
+fn my_default() -> OffsetDateTime {
+    OffsetDateTime::now_utc()
+}
+
+#[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "async-graphql", derive(Enum))]
+pub enum UserType {
+    Individual,
+    Company,
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Clone)]

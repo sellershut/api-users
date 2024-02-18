@@ -1,4 +1,4 @@
-use api_core::{api::CoreError, reexports::uuid::Uuid, Account, Session, User};
+use api_core::{api::CoreError, reexports::uuid::Uuid, Account, Session, User, UserType};
 use serde::{Deserialize, Serialize};
 use surrealdb::{opt::RecordId, sql::Id};
 use time::OffsetDateTime;
@@ -10,6 +10,10 @@ pub(crate) struct DatabaseEntityUser {
     pub email: Option<String>,
     pub name: Option<String>,
     pub avatar: Option<String>,
+    pub user_type: UserType,
+    pub phone_number: Option<String>,
+    pub created_at: OffsetDateTime,
+    pub updated_at: Option<OffsetDateTime>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -72,6 +76,10 @@ impl TryFrom<DatabaseEntityUser> for User {
             email: entity.email,
             name: entity.name,
             avatar: entity.avatar,
+            user_type: entity.user_type,
+            phone_number: entity.phone_number,
+            created_at: entity.created_at,
+            updated_at: entity.updated_at,
         })
     }
 }

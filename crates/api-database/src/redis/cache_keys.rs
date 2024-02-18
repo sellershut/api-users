@@ -6,6 +6,9 @@ use redis::ToRedisArgs;
 #[derive(Clone, Copy)]
 pub enum CacheKey<'a> {
     AllUsers,
+    Session {
+        token: &'a str,
+    },
     UserById {
         id: &'a Uuid,
     },
@@ -22,16 +25,19 @@ impl Display for CacheKey<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "users:{}",
+            "users|session:{}",
             match self {
-                CacheKey::AllUsers => "all".to_string(),
-                CacheKey::UserById { id } => format!("id={id}"),
-                CacheKey::UserByEmail { email } => format!("email={email}"),
+                CacheKey::AllUsers => "users|all".to_string(),
+                CacheKey::UserById { id } => format!("user|id={id}"),
+                CacheKey::UserByEmail { email } => format!("user|email={email}"),
                 CacheKey::UserByAccount {
                     provider,
                     provider_account_id,
                 } => {
-                    format!("provider={provider}|provider_account_id={provider_account_id}")
+                    format!("account|provider={provider}|provider_account_id={provider_account_id}")
+                }
+                CacheKey::Session { token } => {
+                    format!("session={token}")
                 }
             }
         )
