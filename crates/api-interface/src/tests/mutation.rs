@@ -59,39 +59,39 @@ async fn gql_mutation() {
     let create_mutation = format!(
         r"
             mutation {{
-              createCategory(input: {{ name: {name}, subCategories: []}}) {{
+              createUser(input: {{ username: {name}}}) {{
                 id
               }}
             }}
             "
     );
 
-    let id = execute_mutation(&create_mutation, &schema, "createCategory").await;
+    let id = execute_mutation(&create_mutation, &schema, "createUser").await;
     dbg!("id", &id);
 
     let update_mutation = format!(
         r"
             mutation {{
-              updateCategory(id: {id}, input: {{ name: {name}, subCategories: []}}) {{
+              updateUser(id: {id}, input: {{ username: {name}}}) {{
                 id
               }}
             }}
             "
     );
 
-    let id_2 = execute_mutation(&update_mutation, &schema, "updateCategory").await;
+    let id_2 = execute_mutation(&update_mutation, &schema, "updateUser").await;
     assert_eq!(&id, &id_2);
 
     let delete_mutation = format!(
         r"
             mutation {{
-              deleteCategory(id: {id}) {{
+              deleteUser(id: {id}) {{
                 id
               }}
             }}
             "
     );
 
-    let id_3 = execute_mutation(&delete_mutation, &schema, "deleteCategory").await;
+    let id_3 = execute_mutation(&delete_mutation, &schema, "deleteUser").await;
     assert_eq!(&id, &id_3);
 }

@@ -12,8 +12,8 @@ impl Root {
         create_user()
     }
 
-    async fn input(&self, category: User) -> User {
-        category
+    async fn input(&self, user: User) -> User {
+        user
     }
 }
 

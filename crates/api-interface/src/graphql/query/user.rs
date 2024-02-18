@@ -36,9 +36,9 @@ impl UserQuery {
 
         let database = extract_db(ctx)?;
 
-        let categories = database.get_users().await?;
+        let users = database.get_users().await?;
 
-        paginate(categories, p, 100).await
+        paginate(users, p, 100).await
     }
 
     #[instrument(skip(ctx), err(Debug))]
@@ -105,8 +105,8 @@ impl UserQuery {
 
         let database = extract_db(ctx)?;
 
-        let categories = database.search(&query).await?;
+        let users = database.search(&query).await?;
 
-        paginate(categories, p, 100).await
+        paginate(users, p, 100).await
     }
 }

@@ -18,7 +18,7 @@ use crate::{
 };
 
 async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError> {
-    let categories = if let Some((ref redis, ttl)) = db.redis {
+    let users = if let Some((ref redis, ttl)) = db.redis {
         let cache_key = CacheKey::AllUsers;
         let users = redis_query::query::<Vec<User>>(cache_key, redis).await;
 
@@ -31,39 +31,39 @@ async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError
                 .await
                 .map_err(map_db_error)?;
 
-            let categories = users
+            let users = users
                 .into_iter()
                 .map(User::try_from)
                 .collect::<Result<Vec<User>, CoreError>>()?;
 
-            if let Err(e) = redis_query::update(cache_key, redis, &categories, ttl).await {
+            if let Err(e) = redis_query::update(cache_key, redis, &users, ttl).await {
                 error!(key = %cache_key, "[redis update]: {e}");
             }
 
-            categories
+            users
         }
     } else {
-        let categories: Vec<DatabaseEntityUser> = db
+        let users: Vec<DatabaseEntityUser> = db
             .client
             .select(Collections::User)
             .await
             .map_err(map_db_error)?;
-        categories
+        users
             .into_iter()
             .map(User::try_from)
             .collect::<Result<Vec<User>, CoreError>>()?
     };
 
     if let Some(ref client) = db.search_client {
-        debug!("indexing categories for search");
-        let index = client.index("categories");
+        debug!("indexing users for search");
+        let index = client.index("users");
         index
-            .add_documents(&categories, Some("id"))
+            .add_documents(&users, Some("id"))
             .await
             .map_err(|e| CoreError::Other(e.to_string()))?;
     }
 
-    Ok(categories.into_iter())
+    Ok(users.into_iter())
 }
 
 impl QueryUsers for Client {

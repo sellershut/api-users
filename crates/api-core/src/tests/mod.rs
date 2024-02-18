@@ -18,25 +18,25 @@ fn create_user() -> User {
 
 #[test]
 fn encode() {
-    let category = create_user();
+    let user = create_user();
 
-    let json = serde_json::to_string(&category).unwrap();
+    let json = serde_json::to_string(&user).unwrap();
     dbg!(&json);
-    let bytes = bincode::serialize(&category).unwrap();
+    let bytes = bincode::serialize(&user).unwrap();
 
     let value = serde_json::from_str::<User>(&json);
     dbg!(&value);
 
     assert!(value.is_ok());
     let val: User = bincode::deserialize(&bytes[..]).unwrap();
-    assert_eq!(val, category);
+    assert_eq!(val, user);
 }
 
 #[test]
 fn deserialise_list() {
-    let category = create_user();
+    let user = create_user();
 
-    let category_2 = User {
+    let user_2 = User {
         id: Uuid::now_v7(),
         name: Some("Something".into()),
         username: "barfoo".into(),
@@ -44,18 +44,18 @@ fn deserialise_list() {
         avatar: None,
     };
 
-    let categories = vec![category, category_2];
+    let users = vec![user, user_2];
 
-    let str_val = serde_json::to_string(&categories);
+    let str_val = serde_json::to_string(&users);
 
-    let bytes = bincode::serialize(&categories).unwrap();
+    let bytes = bincode::serialize(&users).unwrap();
 
     let source = bincode::deserialize::<Vec<User>>(&bytes[..]).unwrap();
 
     dbg!(&str_val);
 
     assert!(str_val.is_ok());
-    assert_eq!(source, categories);
+    assert_eq!(source, users);
 }
 
 #[tokio::test]
@@ -97,13 +97,13 @@ async fn trait_blank_mutations() {
 async fn mutation_returns_send() {
     use crate::api::MutateUsers;
 
-    let category = create_user();
+    let user = create_user();
 
     let id = Uuid::now_v7();
-    let db = SampleDbSend.create_user(&category).await;
+    let db = SampleDbSend.create_user(&user).await;
     assert!(db.is_ok());
 
-    let db = SampleDbSend.update_user(&id, &category).await;
+    let db = SampleDbSend.update_user(&id, &user).await;
     assert!(db.is_ok());
 
     let db = SampleDbSend.delete_user(&id).await;

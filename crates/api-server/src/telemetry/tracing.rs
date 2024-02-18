@@ -25,7 +25,7 @@ pub fn init_tracer() -> anyhow::Result<sentry::ClientInitGuard> {
     let tracer = tracer(pkg_name, pkg_ver, tx)?;
 
     let filter = Targets::new()
-        .with_target("api_categories", LevelFilter::TRACE)
+        .with_target("api_users", LevelFilter::TRACE)
         .with_default(LevelFilter::TRACE);
 
     let log_levels = log_levels(pkg_name);

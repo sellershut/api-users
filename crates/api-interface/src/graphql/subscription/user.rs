@@ -33,10 +33,10 @@ impl UserChanged {
         self.id.to_string()
     }
 
-    async fn category(&self, ctx: &Context<'_>) -> async_graphql::Result<Option<User>> {
+    async fn user(&self, ctx: &Context<'_>) -> async_graphql::Result<Option<User>> {
         let database = extract_db(ctx)?;
-        let category = database.get_user_by_id(&self.id).await?;
+        let user = database.get_user_by_id(&self.id).await?;
 
-        Ok(category)
+        Ok(user)
     }
 }

@@ -18,13 +18,13 @@ impl UserMutation {
         let database = ctx.data::<Client>()?;
 
         match database.create_user(&input).await {
-            Ok(category) => {
+            Ok(user) => {
                 SimpleBroker::publish(UserChanged {
                     mutation_type: super::MutationType::Created,
-                    id: category.id,
+                    id: user.id,
                 });
 
-                Ok(category)
+                Ok(user)
             }
             Err(e) => Err(e.into()),
         }
@@ -40,12 +40,12 @@ impl UserMutation {
         let database = ctx.data::<Client>()?;
 
         match database.update_user(&id, &input).await {
-            Ok(category) => {
+            Ok(user) => {
                 SimpleBroker::publish(UserChanged {
                     mutation_type: super::MutationType::Updated,
                     id,
                 });
-                Ok(category)
+                Ok(user)
             }
             Err(e) => Err(e.into()),
         }
@@ -60,12 +60,12 @@ impl UserMutation {
         let database = ctx.data::<Client>()?;
 
         match database.delete_user(&id).await {
-            Ok(category) => {
+            Ok(user) => {
                 SimpleBroker::publish(UserChanged {
                     mutation_type: super::MutationType::Deleted,
                     id,
                 });
-                Ok(category)
+                Ok(user)
             }
             Err(e) => Err(e.into()),
         }

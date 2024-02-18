@@ -36,7 +36,7 @@ fn bench(c: &mut Criterion) {
 
     let size = 100;
 
-    let category = User {
+    let user = User {
         id: Uuid::now_v7(),
         username: "foobar".into(),
         email: None,
@@ -45,11 +45,11 @@ fn bench(c: &mut Criterion) {
     };
 
     c.bench_with_input(
-        BenchmarkId::new("category insert", size),
+        BenchmarkId::new("user insert", size),
         &size,
         |b, &_s| {
             b.to_async(&rt)
-                .iter(|| black_box(client.create_user(&category)));
+                .iter(|| black_box(client.create_user(&user)));
         },
     );
 

@@ -17,8 +17,8 @@ impl SessionQuery {
     ) -> async_graphql::Result<Vec<Session>> {
         let database = extract_db(ctx)?;
 
-        let categories = database.get_user_sessions(&user_id).await?;
+        let sessions = database.get_user_sessions(&user_id).await?;
 
-        Ok(categories.collect())
+        Ok(sessions.collect())
     }
 }

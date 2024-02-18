@@ -39,9 +39,6 @@ fn bench(c: &mut Criterion) {
                          cursor
                          node{{
                            id,
-                           name,
-                           subCategories,
-                           imageUrl
                          }}
                        }},
                        pageInfo {{
@@ -54,14 +51,9 @@ fn bench(c: &mut Criterion) {
         ))
     };
 
-    c.bench_with_input(BenchmarkId::new("categories", size), &size, |b, &s| {
+    c.bench_with_input(BenchmarkId::new("users", size), &size, |b, &s| {
         b.to_async(&rt)
-            .iter(|| black_box(schema.execute(query("categories", s))));
-    });
-
-    c.bench_with_input(BenchmarkId::new("subCategories", size), &size, |b, &s| {
-        b.to_async(&rt)
-            .iter(|| black_box(schema.execute(query("subCategories", s))));
+            .iter(|| black_box(schema.execute(query("users", s))));
     });
 }
 
