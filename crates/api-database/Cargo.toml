@@ -34,4 +34,4 @@ uuid.workspace = true
 [[bench]]
 name = "database-insert"
 harness = false
-path = "../../benches/category-insert-db.rs"
+path = "../../benches/user-insert-db.rs"

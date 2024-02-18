@@ -1,10 +1,9 @@
 use anyhow::Result;
 use api_database::Client;
 
-use api_core::{api::MutateCategories, User};
+use api_core::{api::MutateUsers, User};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
-use fake::{faker::lorem::en::Words, Fake};
 use uuid::Uuid;
 
 async fn create_client(with_ns: Option<&str>) -> Result<Client> {
@@ -37,17 +36,12 @@ fn bench(c: &mut Criterion) {
 
     let size = 100;
 
-    let words: Vec<String> = Words(1..5).fake();
-    let words = words.join(" ");
-
-    let sub_categories: Vec<_> = [0; 4].iter().map(|_| Uuid::now_v7()).collect();
-
     let category = User {
         id: Uuid::now_v7(),
-        name: words,
-        sub_categories,
-        image_url: None,
-        parent_id: None,
+        username: "foobar".into(),
+        email: None,
+        name: None,
+        avatar: None,
     };
 
     c.bench_with_input(
@@ -55,7 +49,7 @@ fn bench(c: &mut Criterion) {
         &size,
         |b, &_s| {
             b.to_async(&rt)
-                .iter(|| black_box(client.create_category(&category)));
+                .iter(|| black_box(client.create_user(&category)));
         },
     );
 

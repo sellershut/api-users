@@ -118,11 +118,9 @@ async fn query_returns_send() {
     assert!(db.is_ok());
 
     let generated_id = Uuid::now_v7();
-    let mut id = None;
     let db = SampleDbSend.get_user_by_id(&generated_id).await;
     assert!(db.is_ok());
 
-    id = Some(&generated_id);
     let db = SampleDbSend.get_user_by_email("").await;
     assert!(db.is_ok());
 
