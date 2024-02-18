@@ -22,7 +22,10 @@ pub struct User {
     pub avatar: Option<String>,
     pub user_type: UserType,
     pub phone_number: Option<String>,
-    #[cfg_attr(feature = "async-graphql", graphql(default_with = "default_date_time()"))]
+    #[cfg_attr(
+        feature = "async-graphql",
+        graphql(default_with = "default_date_time()")
+    )]
     pub created_at: OffsetDateTime,
     pub updated_at: Option<OffsetDateTime>,
 }
