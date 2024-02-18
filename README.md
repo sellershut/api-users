@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>Categories API</h1>
+  <h1>Users API</h1>
   <div align="center">
     <img
       alt="GitHub Actions Workflow Status"
