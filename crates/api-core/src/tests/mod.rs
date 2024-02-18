@@ -1,18 +1,23 @@
 mod async_graphql;
 mod db;
 
-use crate::{tests::db::SampleDbSend, User};
+use crate::{tests::db::SampleDbSend, User, UserType};
 
 use self::db::SampleDb;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 fn create_user() -> User {
     User {
         id: Uuid::now_v7(),
-        name: Some(String::from("Something")),
         username: String::from("foobar"),
         email: None,
+        name: Some(String::from("Something")),
         avatar: None,
+        user_type: UserType::Individual,
+        phone_number: None,
+        created_at: OffsetDateTime::now_utc(),
+        updated_at: None,
     }
 }
 
@@ -42,6 +47,10 @@ fn deserialise_list() {
         username: "barfoo".into(),
         email: Some("user@email.com".into()),
         avatar: None,
+        user_type: UserType::Individual,
+        phone_number: None,
+        created_at: OffsetDateTime::now_utc(),
+        updated_at: None,
     };
 
     let users = vec![user, user_2];
