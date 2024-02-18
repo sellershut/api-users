@@ -34,5 +34,5 @@ COPY . .
 RUN cargo build --target x86_64-unknown-linux-musl --release
 
 FROM scratch
-COPY --from=builder /usr/src/app/target/x86_64-unknown-linux-musl/release/api-categories ./
-CMD [ "./api-categories" ]
+COPY --from=builder /usr/src/app/target/x86_64-unknown-linux-musl/release/api-users ./
+CMD [ "./api-users" ]
