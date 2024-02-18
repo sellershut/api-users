@@ -2,14 +2,14 @@ use async_graphql::{EmptySubscription, Object, Schema};
 
 use crate::User;
 
-use super::create_category;
+use super::create_user;
 
 struct Root;
 
 #[Object]
 impl Root {
     async fn output(&self) -> User {
-        create_category()
+        create_user()
     }
 
     async fn input(&self, category: User) -> User {
@@ -46,8 +46,8 @@ async fn gql_mutation() {
         .execute(
             r#"
               mutation {
-                input (category: {name: "Lorem"}) {
-                  name
+                input (user: {username: "Lorem"}) {
+                  username
                 }
               }
             "#,

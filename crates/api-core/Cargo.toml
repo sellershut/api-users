@@ -27,6 +27,6 @@ serde_json.workspace = true
 tokio.workspace = true
 
 [[bench]]
-name = "category-serde"
+name = "users-serde"
 harness = false
-path = "../../benches/category-serde.rs"
+path = "../../benches/users-serde.rs"
