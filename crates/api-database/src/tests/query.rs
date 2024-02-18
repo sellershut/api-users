@@ -1,4 +1,4 @@
-use crate::{collections::Collections, tests::create_client, Client};
+use crate::{collections::Collections, entity::DatabaseEntityUser, tests::create_client, Client};
 use anyhow::Result;
 use api_core::{api::QueryUsers, reexports::uuid::Uuid, User};
 
@@ -45,9 +45,12 @@ async fn query_by_available_id() -> Result<()> {
         .query(format!("SELECT * FROM {} LIMIT 5;", Collections::User))
         .await?;
 
-    let resp: Vec<User> = res.take(0)?;
+    let resp: Vec<DatabaseEntityUser> = res.take(0)?;
+    let resp: Result<Vec<User>, _> = resp.into_iter().map(|db| User::try_from(db)).collect();
 
-    if let Some(item) = resp.first() {
+    let values = resp?;
+
+    if let Some(item) = values.first() {
         check_users_by_id(client, &item.id, true).await?;
     }
 

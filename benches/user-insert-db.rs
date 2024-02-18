@@ -1,9 +1,10 @@
 use anyhow::Result;
 use api_database::Client;
 
-use api_core::{api::MutateUsers, User};
+use api_core::{api::MutateUsers, User, UserType};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 async fn create_client(with_ns: Option<&str>) -> Result<Client> {
@@ -42,6 +43,10 @@ fn bench(c: &mut Criterion) {
         email: None,
         name: None,
         avatar: None,
+        user_type: UserType::Company,
+        phone_number: None,
+        created_at: OffsetDateTime::now_utc(),
+        updated_at: None,
     };
 
     c.bench_with_input(BenchmarkId::new("user insert", size), &size, |b, &_s| {

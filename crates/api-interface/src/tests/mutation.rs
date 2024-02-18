@@ -59,7 +59,7 @@ async fn gql_mutation() {
     let create_mutation = format!(
         r"
             mutation {{
-              createUser(input: {{ username: {name}}}) {{
+              createUser(input: {{ username: {name}, userType: INDIVIDUAL }}) {{
                 id
               }}
             }}
@@ -72,7 +72,7 @@ async fn gql_mutation() {
     let update_mutation = format!(
         r"
             mutation {{
-              updateUser(id: {id}, input: {{ username: {name}}}) {{
+              updateUser(id: {id}, input: {{ username: {name}, userType: COMPANY }}) {{
                 id
               }}
             }}

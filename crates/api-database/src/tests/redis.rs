@@ -43,6 +43,7 @@ async fn redis_get_set() -> Result<()> {
     let pool = client().await;
     let mut pool = pool.get().await.unwrap();
     let key = "IQWOD";
+    pool.del::<_, ()>(key).await.unwrap();
 
     pool.set::<_, &str, ()>(key, "abc").await.unwrap();
 
@@ -61,6 +62,7 @@ async fn redis_list_check() -> Result<()> {
     let pool = client().await;
     let mut pool = pool.get().await.unwrap();
     let key = "HJIUN";
+    pool.del::<_, ()>(key).await.unwrap();
 
     let res = pool.lpop::<&str, ()>(key, None).await;
     dbg!(&res);

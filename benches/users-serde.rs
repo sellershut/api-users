@@ -1,6 +1,7 @@
-use api_core::User;
+use api_core::{User, UserType};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fake::{faker::lorem::en::Words, Fake};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 fn bench(c: &mut Criterion) {
@@ -17,6 +18,10 @@ fn bench(c: &mut Criterion) {
             username: words,
             email: None,
             avatar: None,
+            user_type: UserType::Individual,
+            phone_number: None,
+            created_at: OffsetDateTime::now_utc(),
+            updated_at: None,
         };
 
         users.push(user);

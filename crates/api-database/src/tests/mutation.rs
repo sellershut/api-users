@@ -3,8 +3,9 @@ use anyhow::Result;
 use api_core::{
     api::{MutateUsers, QueryUsers},
     reexports::uuid::Uuid,
-    User,
+    User, UserType,
 };
+use time::OffsetDateTime;
 
 fn create_user_item() -> User {
     User {
@@ -13,6 +14,10 @@ fn create_user_item() -> User {
         username: String::from("foobar"),
         email: None,
         avatar: None,
+        user_type: UserType::Individual,
+        phone_number: None,
+        created_at: OffsetDateTime::now_utc(),
+        updated_at: None,
     }
 }
 
