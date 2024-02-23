@@ -1,7 +1,7 @@
 on:
   push:
     branches: [master]
-name: publish docker image
+name: publish
 
 # cancel on going checks when new code is pushed
 concurrency:
@@ -13,7 +13,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push-image:
+  docker:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -33,9 +33,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=sha
+            #  tags: |
+            #    type=ref,event=branch
+            #    type=sha
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
