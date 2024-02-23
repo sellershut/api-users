@@ -49,8 +49,8 @@ impl MutateSessions for Client {
         let mut resp = self
             .client
             .query(
-                "SELECT * FROM type::table($table) WHERE session_token = type::string($token) LIMIT 1",
-            ).bind(("table", Collection::Session)).bind(("token", session_token))
+                "SELECT * FROM type::table($table) WHERE session_token = type::string($session_token) LIMIT 1",
+            ).bind(("table", Collection::Session)).bind(("session_token", session_token))
             .await
             .map_err(map_db_error)?;
 
