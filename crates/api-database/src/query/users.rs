@@ -10,7 +10,7 @@ use time::OffsetDateTime;
 use tracing::{debug, error, instrument, trace};
 
 use crate::{
-    collections::Collections,
+    collections::Collection,
     entity::{record_id_to_uuid, DatabaseEntityUser},
     map_db_error,
     redis::{cache_keys::CacheKey, redis_query},
@@ -18,7 +18,7 @@ use crate::{
 };
 
 async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError> {
-    let users = if let Some((ref redis, ttl)) = db.redis {
+    let users = if let Some((ref redis, _ttl)) = db.redis {
         let cache_key = CacheKey::AllUsers;
         let users = redis_query::query::<Vec<User>>(cache_key, redis).await;
 
@@ -27,7 +27,7 @@ async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError
         } else {
             let users: Vec<DatabaseEntityUser> = db
                 .client
-                .select(Collections::User)
+                .select(Collection::User)
                 .await
                 .map_err(map_db_error)?;
 
@@ -36,7 +36,7 @@ async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError
                 .map(User::try_from)
                 .collect::<Result<Vec<User>, CoreError>>()?;
 
-            if let Err(e) = redis_query::update(cache_key, redis, &users, ttl).await {
+            if let Err(e) = redis_query::update(cache_key, redis, &users, None).await {
                 error!(key = %cache_key, "[redis update]: {e}");
             }
 
@@ -45,7 +45,7 @@ async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError
     } else {
         let users: Vec<DatabaseEntityUser> = db
             .client
-            .select(Collections::User)
+            .select(Collection::User)
             .await
             .map_err(map_db_error)?;
         users
@@ -76,12 +76,12 @@ impl QueryUsers for Client {
     async fn get_user_by_id(&self, id: &Uuid) -> Result<Option<User>, CoreError> {
         let create_id = |id: &Uuid| -> Thing {
             Thing::from((
-                Collections::User.to_string().as_str(),
+                Collection::User.to_string().as_str(),
                 id.to_string().as_str(),
             ))
         };
 
-        if let Some((ref redis, ttl)) = self.redis {
+        if let Some((ref redis, _ttl)) = self.redis {
             let cache_key = CacheKey::UserById { id };
 
             let user = redis_query::query::<Option<User>>(cache_key, redis).await;
@@ -101,7 +101,7 @@ impl QueryUsers for Client {
                     }
                 });
 
-                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), ttl).await {
+                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), None).await {
                     error!(key = %cache_key, "[redis update]: {e}");
                 }
                 Ok(user)
@@ -128,7 +128,7 @@ impl QueryUsers for Client {
         email: impl AsRef<str> + Send + Debug,
     ) -> Result<Option<User>, CoreError> {
         let email = email.as_ref();
-        if let Some((ref redis, ttl)) = self.redis {
+        if let Some((ref redis, _ttl)) = self.redis {
             let cache_key = CacheKey::UserByEmail { email };
 
             let user = redis_query::query::<Option<User>>(cache_key, redis).await;
@@ -138,10 +138,9 @@ impl QueryUsers for Client {
             } else {
                 let mut user = self
                     .client
-                    .query(format!(
-                        "SELECT * FROM {} WHERE email = '{email}'",
-                        Collections::User
-                    ))
+                    .query("SELECT * FROM type::table($table) WHERE email = type::string($email)")
+                    .bind(("table", Collection::User))
+                    .bind(("email", email))
                     .await
                     .map_err(map_db_error)?;
                 let user: Option<DatabaseEntityUser> = user.take(0).map_err(map_db_error)?;
@@ -153,7 +152,7 @@ impl QueryUsers for Client {
                     }
                 });
 
-                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), ttl).await {
+                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), None).await {
                     error!(key = %cache_key, "[redis update]: {e}");
                 }
                 Ok(user)
@@ -161,10 +160,9 @@ impl QueryUsers for Client {
         } else {
             let mut user = self
                 .client
-                .query(format!(
-                    "SELECT * FROM {} WHERE email = '{email}'",
-                    Collections::User
-                ))
+                .query("SELECT * FROM type::table($table) WHERE email = type::string($email)")
+                .bind(("table", Collection::User))
+                .bind(("email", email))
                 .await
                 .map_err(map_db_error)?;
             let user: Option<DatabaseEntityUser> = user.take(0).map_err(map_db_error)?;
@@ -193,8 +191,8 @@ impl QueryUsers for Client {
             user: DatabaseEntityUser,
         }
 
-        let stmt = format!("SELECT user FROM {} WHERE provider_account_id = '{provider_account_id}' AND provider = '{provider}' FETCH user", Collections::Account);
-        if let Some((ref redis, ttl)) = self.redis {
+        let stmt = "SELECT user FROM {} WHERE provider_account_id = type::string($provider_account_id) AND provider = type::string($provider) FETCH user";
+        if let Some((ref redis, _ttl)) = self.redis {
             let cache_key = CacheKey::UserByAccount {
                 provider,
                 provider_account_id,
@@ -204,7 +202,14 @@ impl QueryUsers for Client {
             if let Some(user) = user {
                 Ok(user)
             } else {
-                let mut user_response = self.client.query(stmt).await.map_err(map_db_error)?;
+                let mut user_response = self
+                    .client
+                    .query(stmt)
+                    .bind(("table", Collection::Account))
+                    .bind(("provider_account_id", provider_account_id))
+                    .bind(("provider", provider))
+                    .await
+                    .map_err(map_db_error)?;
                 let mut user_query: Vec<RetVal> = user_response.take(0).map_err(map_db_error)?;
                 let user = if user_query.is_empty() {
                     None
@@ -214,13 +219,20 @@ impl QueryUsers for Client {
                     Some(User::try_from(user)?)
                 };
 
-                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), ttl).await {
+                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), None).await {
                     error!(key = %cache_key, "[redis update]: {e}");
                 }
                 Ok(user)
             }
         } else {
-            let mut user_response = self.client.query(stmt).await.map_err(map_db_error)?;
+            let mut user_response = self
+                .client
+                .query(stmt)
+                .bind(("table", Collection::Account))
+                .bind(("provider_account_id", provider_account_id))
+                .bind(("provider", provider))
+                .await
+                .map_err(map_db_error)?;
             let mut user_query: Vec<RetVal> = user_response.take(0).map_err(map_db_error)?;
             let user = if user_query.is_empty() {
                 None
@@ -246,11 +258,14 @@ impl QueryUsers for Client {
         session_token: impl AsRef<str> + Send + Debug,
     ) -> Result<Option<(User, Session)>, CoreError> {
         let session_token = session_token.as_ref();
-        let stmt = format!(
-            "SELECT *, user FROM {} WHERE session_token = '{session_token}' FETCH user",
-            Collections::Session
-        );
-        let mut session = self.client.query(stmt).await.map_err(map_db_error)?;
+        let stmt = "SELECT *, user FROM type::table($table) WHERE session_token = type::string($token) FETCH user";
+        let mut session = self
+            .client
+            .query(stmt)
+            .bind(("table", Collection::Session))
+            .bind(("token", session_token))
+            .await
+            .map_err(map_db_error)?;
         let user: Option<serde_json::Value> = session.take(0).map_err(map_db_error)?;
         trace!("user: {user:?}");
 

@@ -1,4 +1,4 @@
-use crate::{collections::Collections, entity::DatabaseEntityUser, tests::create_client, Client};
+use crate::{collections::Collection, entity::DatabaseEntityUser, tests::create_client, Client};
 use anyhow::Result;
 use api_core::{api::QueryUsers, reexports::uuid::Uuid, User};
 
@@ -42,7 +42,7 @@ async fn query_by_available_id() -> Result<()> {
 
     let mut res = client
         .client
-        .query(format!("SELECT * FROM {} LIMIT 5;", Collections::User))
+        .query(format!("SELECT * FROM {} LIMIT 5;", Collection::User))
         .await?;
 
     let resp: Vec<DatabaseEntityUser> = res.take(0)?;

@@ -37,13 +37,19 @@ pub async fn update<T: serde::Serialize>(
     cache_key: CacheKey<'_>,
     redis: &RedisPool,
     data: T,
-    ttl: u64,
+    ttl: Option<u64>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let bytes = bincode::serialize(&data)?;
 
     let mut redis = redis.get().await?;
 
-    if let Err(e) = redis.pset_ex::<_, _, ()>(cache_key, bytes, ttl).await {
+    let res = if let Some(ttl) = ttl {
+        redis.pset_ex::<_, _, ()>(cache_key, bytes, ttl).await
+    } else {
+        redis.set::<_, _, ()>(cache_key, bytes).await
+    };
+
+    if let Err(e) = res {
         error!(key = %cache_key,"[cache update]: {e}");
     }
 

@@ -4,22 +4,24 @@ use api_core::{
 };
 use std::fmt::Debug;
 use surrealdb::opt::RecordId;
+use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{collections::Collections, entity::DatabaseEntityAccount, map_db_error, Client};
+use crate::{collections::Collection, entity::DatabaseEntityAccount, map_db_error, Client};
 
 impl MutateAccounts for Client {
+    #[instrument(skip(self), err(Debug))]
     async fn link_account(&self, account: &Account) -> Result<Account, CoreError> {
         let input_account = InputAccount::from(account);
 
         let mut resp = self
             .client
-            .query(format!(
-                "SELECT * FROM {} where provider = '{}' AND provider_account_id = '{}'",
-                Collections::Account,
-                account.provider,
-                account.provider_account_id
-            ))
+            .query(
+                "SELECT * FROM type::table($table) where provider = type::string($provider) AND provider_account_id = type::string($provider_account_id)"
+            )
+            .bind(("table", Collection::Account))
+            .bind(("provider", &account.provider))
+            .bind(("provider_account_id", &account.provider_account_id))
             .await
             .map_err(map_db_error)?;
 
@@ -31,7 +33,7 @@ impl MutateAccounts for Client {
             let id = Uuid::now_v7().to_string();
             let item: Option<DatabaseEntityAccount> = self
                 .client
-                .create((Collections::Account.to_string(), id))
+                .create((Collection::Account.to_string(), id))
                 .content(input_account)
                 .await
                 .map_err(map_db_error)?;
@@ -43,6 +45,7 @@ impl MutateAccounts for Client {
         }
     }
 
+    #[instrument(skip(self), err(Debug))]
     async fn unlink_account(
         &self,
         provider: impl AsRef<str> + Send + Debug,
@@ -52,10 +55,7 @@ impl MutateAccounts for Client {
         let provider_account_id = provider_account_id.as_ref();
 
         self.client
-            .query(format!(
-            "DELETE {} WHERE providerAccountId = {provider_account_id} AND provider = {provider}",
-            Collections::Account
-        ))
+            .query("DELETE type::table($table) WHERE providerAccountId = type::string($provider_account_id) AND provider = type::string($provider)").bind(("table", Collection::Account)).bind(("provider", provider)).bind(("provider_account_id", provider_account_id))
             .await
             .map_err(map_db_error)?;
 
@@ -73,7 +73,7 @@ struct InputAccount<'a> {
 impl<'a> From<&'a Account> for InputAccount<'a> {
     fn from(value: &'a Account) -> Self {
         Self {
-            user: RecordId::from((Collections::User.to_string(), value.user.to_string())),
+            user: RecordId::from((Collection::User.to_string(), value.user.to_string())),
             provider: &value.provider,
             provider_account_id: &value.provider_account_id,
         }

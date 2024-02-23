@@ -6,17 +6,19 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use surrealdb::opt::RecordId;
 use time::OffsetDateTime;
+use tracing::{debug, instrument};
 use uuid::Uuid;
 
-use crate::{collections::Collections, entity::DatabaseEntitySession, map_db_error, Client};
+use crate::{collections::Collection, entity::DatabaseEntitySession, map_db_error, Client};
 
 impl MutateSessions for Client {
+    #[instrument(skip(self), err(Debug))]
     async fn create_session(&self, session: &Session) -> Result<Session, CoreError> {
         let input_session = InputSession::from(session);
         let id = Uuid::now_v7().to_string();
         let item: Option<DatabaseEntitySession> = self
             .client
-            .create((Collections::Session.to_string(), id))
+            .create((Collection::Session.to_string(), id))
             .content(input_session)
             .await
             .map_err(map_db_error)?;
@@ -26,19 +28,12 @@ impl MutateSessions for Client {
             None => Err(CoreError::Unreachable),
         }?;
 
-        /* let cache_key = CacheKey::Session {
-            token: &session.session_token,
-        };
-
-        if let Some((ref redis_pool, _)) = self.redis {
-            if let Err(e) = redis_query::update(cache_key, redis_pool, &session, 86400000).await {
-                error!(key = %cache_key, "[redis update]: {e}");
-            }
-        } */
+        debug!("session created");
 
         Ok(session)
     }
 
+    #[instrument(skip(self), err(Debug))]
     async fn update_session(
         &self,
         id: impl AsRef<str> + Send + Debug,
@@ -53,10 +48,9 @@ impl MutateSessions for Client {
 
         let mut resp = self
             .client
-            .query(format!(
-                "SELECT * FROM {} WHERE session_token = '{session_token}' LIMIT 1",
-                Collections::Session
-            ))
+            .query(
+                "SELECT * FROM type::table($table) WHERE session_token = type::string($token) LIMIT 1",
+            ).bind(("table", Collection::Session)).bind(("token", session_token))
             .await
             .map_err(map_db_error)?;
 
@@ -76,44 +70,56 @@ impl MutateSessions for Client {
                 Some(res) => Some(Session::try_from(res)?),
                 None => None,
             };
+
+            debug!("session updated");
+
             Ok(res)
         } else {
             Ok(None)
         }
     }
 
+    #[instrument(skip(self), err(Debug))]
     async fn delete_session(&self, id: impl AsRef<str> + Send + Debug) -> Result<(), CoreError> {
         let _resp: Option<DatabaseEntitySession> = self
             .client
-            .delete((Collections::Session.to_string(), id.as_ref().to_string()))
+            .delete((Collection::Session.to_string(), id.as_ref().to_string()))
             .await
             .map_err(map_db_error)?;
+
+        debug!("session deleted");
+
         Ok(())
     }
 
+    #[instrument(skip(self), err(Debug))]
     async fn delete_user_sessions(
         &self,
         user_id: impl AsRef<str> + Send + Debug,
     ) -> Result<(), CoreError> {
         let user_id = user_id.as_ref();
         self.client
-            .query(format!(
-                "DELETE * FROM {} WHERE user_id = {user_id}",
-                Collections::Session
-            ))
+            .query("DELETE * FROM type::table($table) WHERE user_id = type::string($user_id)")
+            .bind(("table", Collection::Session))
+            .bind(("user_id", user_id))
             .await
             .map_err(map_db_error)?;
+
+        debug!("user sessions deleted");
+
         Ok(())
     }
 
+    #[instrument(skip(self), err(Debug))]
     async fn delete_expired_sessions(&self) -> Result<(), CoreError> {
         self.client
-            .query(format!(
-                "DELETE * FROM {} WHERE expires_at <= time::now()",
-                Collections::Session
-            ))
+            .query("DELETE * FROM type::table($table) WHERE expires_at <= time::now()")
+            .bind(("table", Collection::Session))
             .await
             .map_err(map_db_error)?;
+
+        debug!("expired sessions deleted");
+
         Ok(())
     }
 }
@@ -129,7 +135,7 @@ impl<'a> From<&'a Session> for InputSession<'a> {
     fn from(value: &'a Session) -> Self {
         Self {
             user: RecordId::from((
-                Collections::User.to_string().as_str(),
+                Collection::User.to_string().as_str(),
                 value.user.to_string().as_str(),
             )),
             expires_at: &value.expires_at,
