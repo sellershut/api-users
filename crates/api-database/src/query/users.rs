@@ -18,7 +18,7 @@ use crate::{
 };
 
 async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError> {
-    let users = if let Some((ref redis, ttl)) = db.redis {
+    let users = if let Some((ref redis, _ttl)) = db.redis {
         let cache_key = CacheKey::AllUsers;
         let users = redis_query::query::<Vec<User>>(cache_key, redis).await;
 
@@ -36,7 +36,7 @@ async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError
                 .map(User::try_from)
                 .collect::<Result<Vec<User>, CoreError>>()?;
 
-            if let Err(e) = redis_query::update(cache_key, redis, &users, ttl).await {
+            if let Err(e) = redis_query::update(cache_key, redis, &users, None).await {
                 error!(key = %cache_key, "[redis update]: {e}");
             }
 
@@ -81,7 +81,7 @@ impl QueryUsers for Client {
             ))
         };
 
-        if let Some((ref redis, ttl)) = self.redis {
+        if let Some((ref redis, _ttl)) = self.redis {
             let cache_key = CacheKey::UserById { id };
 
             let user = redis_query::query::<Option<User>>(cache_key, redis).await;
@@ -101,7 +101,7 @@ impl QueryUsers for Client {
                     }
                 });
 
-                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), ttl).await {
+                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), None).await {
                     error!(key = %cache_key, "[redis update]: {e}");
                 }
                 Ok(user)
@@ -128,7 +128,7 @@ impl QueryUsers for Client {
         email: impl AsRef<str> + Send + Debug,
     ) -> Result<Option<User>, CoreError> {
         let email = email.as_ref();
-        if let Some((ref redis, ttl)) = self.redis {
+        if let Some((ref redis, _ttl)) = self.redis {
             let cache_key = CacheKey::UserByEmail { email };
 
             let user = redis_query::query::<Option<User>>(cache_key, redis).await;
@@ -153,7 +153,7 @@ impl QueryUsers for Client {
                     }
                 });
 
-                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), ttl).await {
+                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), None).await {
                     error!(key = %cache_key, "[redis update]: {e}");
                 }
                 Ok(user)
@@ -194,7 +194,7 @@ impl QueryUsers for Client {
         }
 
         let stmt = format!("SELECT user FROM {} WHERE provider_account_id = '{provider_account_id}' AND provider = '{provider}' FETCH user", Collections::Account);
-        if let Some((ref redis, ttl)) = self.redis {
+        if let Some((ref redis, _ttl)) = self.redis {
             let cache_key = CacheKey::UserByAccount {
                 provider,
                 provider_account_id,
@@ -214,7 +214,7 @@ impl QueryUsers for Client {
                     Some(User::try_from(user)?)
                 };
 
-                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), ttl).await {
+                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), None).await {
                     error!(key = %cache_key, "[redis update]: {e}");
                 }
                 Ok(user)

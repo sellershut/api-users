@@ -8,9 +8,15 @@ use api_core::{
 };
 use surrealdb::sql::Thing;
 use time::OffsetDateTime;
-use tracing::instrument;
+use tracing::{error, instrument};
 
-use crate::{collections::Collections, entity::DatabaseEntityUser, map_db_error, Client};
+use crate::{
+    collections::Collections,
+    entity::DatabaseEntityUser,
+    map_db_error,
+    redis::{cache_keys::CacheKey, PoolLike, PooledConnectionLike},
+    Client,
+};
 
 impl MutateUsers for Client {
     #[instrument(skip(self), err(Debug))]
@@ -26,7 +32,20 @@ impl MutateUsers for Client {
             .map_err(map_db_error)?;
 
         match item {
-            Some(e) => User::try_from(e),
+            Some(e) => {
+                let user = User::try_from(e)?;
+
+                if let Some((ref redis, _ttl)) = self.redis {
+                    let user_key = CacheKey::AllUsers;
+
+                    let mut redis = redis.get().await.unwrap();
+
+                    if let Err(e) = redis.del::<_, ()>(user_key).await {
+                        error!("{e}");
+                    }
+                }
+                Ok(user)
+            }
             None => Err(CoreError::Unreachable),
         }
     }
@@ -48,7 +67,28 @@ impl MutateUsers for Client {
             .await
             .map_err(map_db_error)?;
         let res = match item {
-            Some(e) => Some(User::try_from(e)?),
+            Some(e) => {
+                let user = User::try_from(e)?;
+
+                if let Some((ref redis, _ttl)) = self.redis {
+                    let user_key = CacheKey::UserById { id: &user.id };
+                    let user_key_2 = CacheKey::AllUsers;
+
+                    let mut redis = redis.get().await.unwrap();
+                    let mut pipeline = redis::Pipeline::new();
+                    let refs = pipeline.del(user_key).del(user_key_2);
+
+                    if let Some(ref email) = user.email {
+                        let user_key_3 = CacheKey::UserByEmail { email };
+                        refs.del(user_key_3);
+                    }
+
+                    if let Err(e) = redis.query_async_pipeline::<()>(pipeline).await {
+                        error!("{e}");
+                    }
+                }
+                Some(user)
+            }
             None => None,
         };
 
@@ -64,7 +104,27 @@ impl MutateUsers for Client {
 
         let res: Option<DatabaseEntityUser> = self.client.delete(id).await.map_err(map_db_error)?;
         let res = match res {
-            Some(e) => Some(User::try_from(e)?),
+            Some(e) => {
+                let user = User::try_from(e)?;
+                if let Some((ref redis, _ttl)) = self.redis {
+                    let user_key = CacheKey::UserById { id: &user.id };
+                    let user_key_2 = CacheKey::AllUsers;
+
+                    let mut redis = redis.get().await.unwrap();
+                    let mut pipeline = redis::Pipeline::new();
+                    let refs = pipeline.del(user_key).del(user_key_2);
+
+                    if let Some(ref email) = user.email {
+                        let user_key_3 = CacheKey::UserByEmail { email };
+                        refs.del(user_key_3);
+                    }
+
+                    if let Err(e) = redis.query_async_pipeline::<()>(pipeline).await {
+                        error!("{e}");
+                    }
+                }
+                Some(user)
+            }
             None => None,
         };
 
