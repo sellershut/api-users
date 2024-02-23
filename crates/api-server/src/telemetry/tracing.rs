@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use opentelemetry::KeyValue;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{
+    propagation::TraceContextPropagator,
     runtime,
     trace::{self, Tracer},
     Resource,
@@ -32,12 +33,17 @@ pub fn init_tracer() -> anyhow::Result<sentry::ClientInitGuard> {
 
     let sentry_guard = init_sentry()?;
 
+    let layer = tracing_subscriber::fmt::layer();
+
+    #[cfg(debug_assertions)]
+    let layer = layer.pretty();
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| log_levels.into()),
         )
-        .with(tracing_subscriber::fmt::layer())
+        .with(layer)
         .with(
             tracing_opentelemetry::layer()
                 .with_tracer(tracer)
@@ -72,6 +78,8 @@ fn init_sentry() -> anyhow::Result<sentry::ClientInitGuard> {
 }
 
 fn tracer(pkg_name: &str, pkg_ver: &str, tx: Sender<String>) -> anyhow::Result<Tracer> {
+    opentelemetry::global::set_text_map_propagator(TraceContextPropagator::default());
+
     let collector_endpoint =
         extract_variable("OPENTELEMETRY_COLLECTOR_HOST", "http://localhost:4317");
 
