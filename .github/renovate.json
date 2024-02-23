@@ -36,6 +36,14 @@
       ]
     },
     {
+      "matchPackagePatterns": [
+        "anyhow",
+        "thiserror"
+      ],
+      "automerge": true,
+      "groupName": "error-handling"
+    },
+    {
       "groupName": "serde",
       "automerge": true,
       "matchPackagePatterns": [
@@ -52,6 +60,18 @@
       "automerge": true,
       "matchPackagePatterns": [
         "tokio"
+      ],
+      "matchCurrentVersion": "!/^0/",
+      "matchUpdateTypes": [
+        "patch",
+        "minor"
+      ]
+    },
+    {
+      "groupName": "futures",
+      "automerge": true,
+      "matchPackagePatterns": [
+        "futures"
       ],
       "matchCurrentVersion": "!/^0/",
       "matchUpdateTypes": [
