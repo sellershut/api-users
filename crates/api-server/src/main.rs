@@ -19,6 +19,7 @@ use axum::{
 use tokio::signal;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::info;
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::routes::{
     handler,
@@ -69,8 +70,7 @@ async fn create_router(state: state::AppState) -> Result<Router> {
         )
         .route_service(SUBSCRIPTION_ENDPOINT, GraphQLSubscription::new(schema))
         .route_layer(middleware::from_fn(track_metrics))
-        // If you want to customize the behavior using closures here is how.
-        .layer(TraceLayer::new_for_http())
+        .layer(TraceLayer::new_for_http().make_span_with(make_span))
         .layer(
             CorsLayer::new()
                 .allow_origin(state.frontend_url.parse::<HeaderValue>()?)
@@ -79,6 +79,28 @@ async fn create_router(state: state::AppState) -> Result<Router> {
         );
 
     Ok(router)
+}
+
+fn make_span(request: &axum::http::Request<axum::body::Body>) -> tracing::Span {
+    let headers = request.headers();
+
+    let header_map: std::collections::HashMap<String, String> = headers
+        .iter()
+        .map(|(key, value)| {
+            (
+                key.to_string(),
+                String::from_utf8_lossy(value.as_bytes()).to_string(),
+            )
+        })
+        .collect();
+
+    let parent_ctx = opentelemetry::global::get_text_map_propagator(|propagator| {
+        propagator.extract(&header_map)
+    });
+
+    let span = tracing::info_span!("users.request", ?headers);
+    span.set_parent(parent_ctx);
+    span
 }
 
 async fn shutdown_signal() {
