@@ -11,7 +11,7 @@ use time::OffsetDateTime;
 use tracing::{error, instrument};
 
 use crate::{
-    collections::Collections,
+    collections::Collection,
     entity::DatabaseEntityUser,
     map_db_error,
     redis::{cache_keys::CacheKey, PoolLike, PooledConnectionLike},
@@ -26,7 +26,7 @@ impl MutateUsers for Client {
         let id = Uuid::now_v7().to_string();
         let item: Option<DatabaseEntityUser> = self
             .client
-            .create((Collections::User.to_string(), id))
+            .create((Collection::User.to_string(), id))
             .content(input_user)
             .await
             .map_err(map_db_error)?;
@@ -53,7 +53,7 @@ impl MutateUsers for Client {
     #[instrument(skip(self, id), err(Debug))]
     async fn update_user(&self, id: &Uuid, data: &User) -> Result<Option<User>, CoreError> {
         let id = Thing::from((
-            Collections::User.to_string().as_str(),
+            Collection::User.to_string().as_str(),
             id.to_string().as_str(),
         ));
 
@@ -98,7 +98,7 @@ impl MutateUsers for Client {
     #[instrument(skip(self, id), err(Debug))]
     async fn delete_user(&self, id: &Uuid) -> Result<Option<User>, CoreError> {
         let id = Thing::from((
-            Collections::User.to_string().as_str(),
+            Collection::User.to_string().as_str(),
             id.to_string().as_ref(),
         ));
 
