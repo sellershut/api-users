@@ -258,12 +258,12 @@ impl QueryUsers for Client {
         session_token: impl AsRef<str> + Send + Debug,
     ) -> Result<Option<(User, Session)>, CoreError> {
         let session_token = session_token.as_ref();
-        let stmt = "SELECT *, user FROM type::table($table) WHERE session_token = type::string($token) FETCH user";
+        let stmt = "SELECT *, user FROM type::table($table) WHERE session_token = type::string($session_token) FETCH user";
         let mut session = self
             .client
             .query(stmt)
             .bind(("table", Collection::Session))
-            .bind(("token", session_token))
+            .bind(("session_token", session_token))
             .await
             .map_err(map_db_error)?;
         let user: Option<serde_json::Value> = session.take(0).map_err(map_db_error)?;
