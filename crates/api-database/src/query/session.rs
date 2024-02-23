@@ -5,7 +5,7 @@ use api_core::{
 use surrealdb::sql::Thing;
 use uuid::Uuid;
 
-use crate::{collections::Collections, entity::DatabaseEntitySession, map_db_error, Client};
+use crate::{collections::Collection, entity::DatabaseEntitySession, map_db_error, Client};
 
 impl QuerySessions for Client {
     async fn get_user_sessions(
@@ -14,18 +14,16 @@ impl QuerySessions for Client {
     ) -> Result<impl ExactSizeIterator<Item = Session>, CoreError> {
         let create_id = |id: &Uuid| -> Thing {
             Thing::from((
-                Collections::User.to_string().as_str(),
+                Collection::User.to_string().as_str(),
                 id.to_string().as_str(),
             ))
         };
 
         let mut resp = self
             .client
-            .query(format!(
-                "SELECT * FROM {} WHERE user = {}",
-                Collections::Session,
-                create_id(user_id)
-            ))
+            .query("SELECT * FROM type::table($table) WHERE user = type::string($user)")
+            .bind(("table", Collection::Session))
+            .bind(("user", create_id(user_id)))
             .await
             .map_err(map_db_error)?;
 
