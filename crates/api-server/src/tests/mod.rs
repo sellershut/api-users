@@ -16,6 +16,7 @@ async fn http_check() -> Result<()> {
     let router = create_router(state).await?;
 
     let response = router
+        .clone()
         .oneshot(
             Request::builder()
                 .uri("/")
@@ -25,6 +26,12 @@ async fn http_check() -> Result<()> {
         .await?;
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    let response = router
+        .oneshot(Request::builder().uri("/").body(Body::empty())?)
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::OK);
 
     Ok(())
 }
