@@ -55,13 +55,25 @@ impl ApiSchemaBuilder {
 
         info!("database database client created");
 
+        let builder = Schema::build(
+            Query::default(),
+            Mutation::default(),
+            Subscription::default(),
+        )
+        .data(db_client);
+
         let builder = Self {
-            builder: Schema::build(
-                Query::default(),
-                Mutation::default(),
-                Subscription::default(),
-            )
-            .data(db_client),
+            builder: {
+                #[cfg(debug_assertions)]
+                {
+                    builder
+                }
+
+                #[cfg(not(debug_assertions))]
+                {
+                    builder.disable_introspection()
+                }
+            },
         };
 
         Ok(builder)
