@@ -1,6 +1,7 @@
 on:
   push:
     branches: [master]
+  workflow_dispatch:
 name: publish
 
 # cancel on going checks when new code is pushed
@@ -26,7 +27,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.PAT_PKG_MANAGEMENT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
