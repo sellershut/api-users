@@ -9,7 +9,7 @@ edition = "2021"
 api-core = { workspace = true, features = ["serde"] }
 async-trait.workspace = true
 bb8 = "0.8.3"
-bb8-redis = "0.14.0"
+bb8-redis = "0.15.0"
 bincode = "1.3.3"
 futures-util.workspace = true
 meilisearch-sdk = { workspace = true, features = ["reqwest-rustls"] }
