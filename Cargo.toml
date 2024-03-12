@@ -5,7 +5,7 @@ resolver = "2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace.dependencies]
-anyhow = "1.0.80"
+anyhow = "1.0.81"
 api-core = { path = "./crates/api-core", default-features = false }
 api-database = { path = "./crates/api-database" }
 async-graphql = { version = "7.0.2", default-features = false }
@@ -23,7 +23,7 @@ opentelemetry = "0.22.0"
 serde = "1.0.197"
 serde_json = "1.0.114"
 surrealdb = "1.2.2"
-thiserror = "1.0.57"
+thiserror = "1.0.58"
 time = "0.3.34"
 tokio = "1.36.0"
 tracing = "0.1.40"
