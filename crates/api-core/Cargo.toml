@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 async-graphql = { workspace = true, optional = true }
-async-trait = "0.1.77"
+async-trait = "0.1.78"
 serde = { workspace = true, optional = true }
 thiserror.workspace = true
 time.workspace = true
