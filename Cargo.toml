@@ -28,7 +28,7 @@ time = "0.3.34"
 tokio = "1.36.0"
 tracing = "0.1.40"
 trait-variant = "0.1.1"
-uuid = "1.7.0"
+uuid = "1.8.0"
 
 # https://github.com/meilisearch/meilisearch-rust/pull/524
 [patch.crates-io]
