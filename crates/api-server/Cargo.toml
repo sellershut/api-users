@@ -10,7 +10,7 @@ anyhow = "1.0.81"
 api-interface = { version = "0.1.0", path = "../api-interface" }
 async-graphql = { workspace = true, features = ["playground", "tracing"] }
 async-graphql-axum.workspace = true
-axum = { version = "0.7.4", features = ["macros", "ws"] }
+axum = { version = "0.7.5", features = ["macros", "ws"] }
 dotenvy.workspace = true
 metrics = { version = "0.22.3", default-features = false }
 metrics-exporter-prometheus = { version = "0.14.0", default-features = false }
