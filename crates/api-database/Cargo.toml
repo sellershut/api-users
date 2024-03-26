@@ -15,7 +15,7 @@ futures-util.workspace = true
 meilisearch-sdk = { workspace = true, features = ["reqwest-rustls"] }
 redis = { version = "0.25.2", default-features = false, features = ["cluster-async", "tokio-comp"] }
 serde.workspace = true
-serde_json = "1.0.114"
+serde_json = "1.0.115"
 surrealdb.workspace = true
 thiserror.workspace = true
 time.workspace = true
