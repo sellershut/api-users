@@ -6,22 +6,22 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.80"
+anyhow = "1.0.81"
 api-interface = { version = "0.1.0", path = "../api-interface" }
 async-graphql = { workspace = true, features = ["playground", "tracing"] }
 async-graphql-axum.workspace = true
-axum = { version = "0.7.4", features = ["macros", "ws"] }
+axum = { version = "0.7.5", features = ["macros", "ws"] }
 dotenvy.workspace = true
-metrics = { version = "0.22.1", default-features = false }
-metrics-exporter-prometheus = { version = "0.13.1", default-features = false }
+metrics = { version = "0.22.3", default-features = false }
+metrics-exporter-prometheus = { version = "0.14.0", default-features = false }
 opentelemetry.workspace = true
-opentelemetry-otlp = "0.14.0"
-opentelemetry-semantic-conventions = { version = "0.13.0", default-features = false }
-opentelemetry_sdk = { version = "0.21.2", features = ["rt-tokio"] }
+opentelemetry-otlp = "0.15.0"
+opentelemetry-semantic-conventions = { version = "0.14.0", default-features = false }
+opentelemetry_sdk = { version = "0.22.1", features = ["rt-tokio"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal"] }
 tower-http = { version = "0.5.2", features = ["cors", "trace"] }
 tracing.workspace = true
-tracing-opentelemetry = "0.22.0"
+tracing-opentelemetry = "0.23.0"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 sentry = { version = "0.32.2", default-features = false, features = ["reqwest", "rustls", "tower", "tracing"] }
 

@@ -6,7 +6,7 @@ pub(crate) mod cache_keys;
 pub(crate) mod redis_query;
 
 use bb8::{Pool, RunError};
-use bb8_redis::RedisMultiplexedConnectionManager;
+use bb8_redis::RedisConnectionManager;
 pub use cluster::RedisClusterConnectionManager;
 
 use async_trait::async_trait;
@@ -25,7 +25,7 @@ pub struct ClusteredRedisPool {
 
 #[derive(Clone, Debug)]
 pub struct NonClusteredRedisPool {
-    pool: Pool<RedisMultiplexedConnectionManager>,
+    pool: Pool<RedisConnectionManager>,
 }
 
 pub enum PooledConnection<'a> {
@@ -190,7 +190,7 @@ impl<'a> PooledConnectionLike for PooledConnection<'a> {
 }
 
 pub struct NonClusteredPooledConnection<'a> {
-    con: bb8::PooledConnection<'a, RedisMultiplexedConnectionManager>,
+    con: bb8::PooledConnection<'a, RedisConnectionManager>,
 }
 
 impl<'a> NonClusteredPooledConnection<'a> {
@@ -273,8 +273,7 @@ async fn new_redis_pool_helper(
         let pool = ClusteredRedisPool { pool };
         RedisPool::Clustered(pool)
     } else {
-        let mgr = RedisMultiplexedConnectionManager::new(redis_dsn)
-            .expect("Error intializing redis client");
+        let mgr = RedisConnectionManager::new(redis_dsn).expect("Error intializing redis client");
         let pool = bb8::Pool::builder()
             .max_size(max_connections.into())
             .build(mgr)
