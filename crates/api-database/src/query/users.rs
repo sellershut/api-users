@@ -133,8 +133,8 @@ impl QueryUsers for Client {
 
             let user = redis_query::query::<Option<User>>(cache_key, redis).await;
 
-            if let Some(user) = user {
-                Ok(user)
+            if let Some(Some(user)) = user {
+                Ok(Some(user))
             } else {
                 let mut user = self
                     .client
