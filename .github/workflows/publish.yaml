@@ -1,7 +1,10 @@
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
+  workflow_run:
+    workflows: ["rust"]
+    branches: [master]
+    types: [completed]
+
 name: publish
 
 # cancel on going checks when new code is pushed
