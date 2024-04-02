@@ -10,6 +10,7 @@ use surrealdb::{
 pub(crate) enum Collection {
     User,
     Session,
+    #[serde(rename = "oauth_account")]
     Account,
 }
 

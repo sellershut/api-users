@@ -17,7 +17,7 @@ impl MutateAccounts for Client {
         let mut resp = self
             .client
             .query(
-                "SELECT * FROM type::table($table) where provider = type::string($provider) AND provider_account_id = type::string($provider_account_id)"
+                "SELECT * FROM type::table($table) WHERE provider = type::string($provider) AND provider_account_id = type::string($provider_account_id)"
             )
             .bind(("table", Collection::Account))
             .bind(("provider", &account.provider))
@@ -55,7 +55,10 @@ impl MutateAccounts for Client {
         let provider_account_id = provider_account_id.as_ref();
 
         self.client
-            .query("DELETE type::table($table) WHERE providerAccountId = type::string($provider_account_id) AND provider = type::string($provider)").bind(("table", Collection::Account)).bind(("provider", provider)).bind(("provider_account_id", provider_account_id))
+            .query("DELETE type::table($table) WHERE providerAccountId = type::string($provider_account_id) AND provider = type::string($provider)")
+            .bind(("table", Collection::Account))
+            .bind(("provider", provider))
+            .bind(("provider_account_id", provider_account_id))
             .await
             .map_err(map_db_error)?;
 
