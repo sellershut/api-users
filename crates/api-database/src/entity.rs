@@ -1,4 +1,4 @@
-use api_core::{api::CoreError, reexports::uuid::Uuid, Account, Session, User, UserType};
+use api_core::{api::CoreError, reexports::uuid::Uuid, AccountProvider, Session, User, UserType};
 use serde::{Deserialize, Serialize};
 use surrealdb::{opt::RecordId, sql::Id};
 use time::OffsetDateTime;
@@ -12,8 +12,8 @@ pub(crate) struct DatabaseEntityUser {
     pub avatar: Option<String>,
     pub user_type: UserType,
     pub phone_number: Option<String>,
-    pub created_at: OffsetDateTime,
-    pub updated_at: Option<OffsetDateTime>,
+    pub created: isize,
+    pub updated: isize,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -25,25 +25,20 @@ pub(crate) struct DatabaseEntitySession {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub(crate) struct DatabaseEntityAccount {
+pub(crate) struct DatabaseEntityAccountProvider {
     pub id: RecordId,
-    pub user: RecordId,
-    pub provider: String,
-    pub provider_account_id: String,
+    pub name: String,
 }
 
-impl TryFrom<DatabaseEntityAccount> for Account {
+impl TryFrom<DatabaseEntityAccountProvider> for AccountProvider {
     type Error = CoreError;
 
-    fn try_from(value: DatabaseEntityAccount) -> Result<Self, Self::Error> {
+    fn try_from(value: DatabaseEntityAccountProvider) -> Result<Self, Self::Error> {
         let id = record_id_to_uuid(&value.id)?;
-        let user = record_id_to_uuid(&value.user)?;
 
-        Ok(Account {
+        Ok(AccountProvider {
             id,
-            user,
-            provider: value.provider,
-            provider_account_id: value.provider_account_id,
+            name: value.name,
         })
     }
 }
@@ -53,11 +48,9 @@ impl TryFrom<DatabaseEntitySession> for Session {
 
     fn try_from(value: DatabaseEntitySession) -> Result<Self, Self::Error> {
         let id = record_id_to_uuid(&value.id)?;
-        let user = record_id_to_uuid(&value.user)?;
 
         Ok(Session {
             id,
-            user,
             expires_at: value.expires_at,
             session_token: value.session_token,
         })
@@ -78,8 +71,8 @@ impl TryFrom<DatabaseEntityUser> for User {
             avatar: entity.avatar,
             user_type: entity.user_type,
             phone_number: entity.phone_number,
-            created_at: entity.created_at,
-            updated_at: entity.updated_at,
+            created: entity.created,
+            updated: entity.updated,
         })
     }
 }

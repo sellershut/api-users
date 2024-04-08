@@ -1,7 +1,7 @@
 mod error;
 pub use std::fmt::Debug;
 
-use crate::{Account, Session, User};
+use crate::{Session, User};
 
 pub use error::*;
 use time::OffsetDateTime;
@@ -39,7 +39,12 @@ pub trait LocalMutateUsers {
 
 #[trait_variant::make(MutateAccounts: Send)]
 pub trait LocalMutateAccounts {
-    async fn link_account(&self, account: &Account) -> Result<Account, CoreError>;
+    async fn link_account(
+        &self,
+        provider: impl AsRef<str> + Send + Debug,
+        provider_account_id: impl AsRef<str> + Send + Debug,
+        user_id: &Uuid,
+    ) -> Result<(), CoreError>;
     async fn unlink_account(
         &self,
         provider: impl AsRef<str> + Send + Debug,

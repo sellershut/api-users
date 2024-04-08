@@ -16,6 +16,9 @@ use crate::{
     redis::{cache_keys::CacheKey, redis_query},
     Client,
 };
+pub fn create_id(collection: Collection, id: &Uuid) -> Thing {
+    Thing::from((collection.to_string().as_str(), id.to_string().as_str()))
+}
 
 async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError> {
     let users = if let Some((ref redis, _ttl)) = db.redis {
@@ -74,13 +77,6 @@ impl QueryUsers for Client {
 
     #[instrument(skip(self), err(Debug))]
     async fn get_user_by_id(&self, id: &Uuid) -> Result<Option<User>, CoreError> {
-        let create_id = |id: &Uuid| -> Thing {
-            Thing::from((
-                Collection::User.to_string().as_str(),
-                id.to_string().as_str(),
-            ))
-        };
-
         if let Some((ref redis, _ttl)) = self.redis {
             let cache_key = CacheKey::UserById { id };
 
@@ -89,7 +85,7 @@ impl QueryUsers for Client {
             if let Some(user) = user {
                 Ok(user)
             } else {
-                let id = create_id(id);
+                let id = create_id(Collection::User, id);
 
                 let user: Option<DatabaseEntityUser> =
                     self.client.select(id).await.map_err(map_db_error)?;
@@ -107,7 +103,7 @@ impl QueryUsers for Client {
                 Ok(user)
             }
         } else {
-            let id = create_id(id);
+            let id = create_id(Collection::User, id);
 
             let user: Option<DatabaseEntityUser> =
                 self.client.select(id).await.map_err(map_db_error)?;
@@ -205,7 +201,7 @@ impl QueryUsers for Client {
                 let mut user_response = self
                     .client
                     .query(stmt)
-                    .bind(("table", Collection::Account))
+                    .bind(("table", Collection::AccountProvider))
                     .bind(("provider_account_id", provider_account_id))
                     .bind(("provider", provider))
                     .await
@@ -228,7 +224,7 @@ impl QueryUsers for Client {
             let mut user_response = self
                 .client
                 .query(stmt)
-                .bind(("table", Collection::Account))
+                .bind(("table", Collection::AccountProvider))
                 .bind(("provider_account_id", provider_account_id))
                 .bind(("provider", provider))
                 .await
@@ -333,7 +329,6 @@ impl QueryUsers for Client {
 
                     let session = Session {
                         id,
-                        user: user.id,
                         expires_at: expires.expect("to exist"),
                         session_token,
                     };

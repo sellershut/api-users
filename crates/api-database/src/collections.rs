@@ -10,8 +10,10 @@ use surrealdb::{
 pub(crate) enum Collection {
     User,
     Session,
-    #[serde(rename = "oauth_account")]
-    Account,
+    #[serde(rename = "account_provider")]
+    AccountProvider,
+    #[serde(rename = "user_account")]
+    UserAccount,
 }
 
 impl std::fmt::Display for Collection {
@@ -22,7 +24,8 @@ impl std::fmt::Display for Collection {
             match self {
                 Collection::User => "user",
                 Collection::Session => "session",
-                Collection::Account => "oauth_account",
+                Collection::AccountProvider => "account_provider",
+                Collection::UserAccount => "user_account",
             }
         )
     }

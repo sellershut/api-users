@@ -16,8 +16,8 @@ fn create_user() -> User {
         avatar: None,
         user_type: UserType::Individual,
         phone_number: None,
-        created_at: OffsetDateTime::now_utc(),
-        updated_at: None,
+        created: OffsetDateTime::now_utc(),
+        updated: None,
     }
 }
 
@@ -49,8 +49,8 @@ fn deserialise_list() {
         avatar: None,
         user_type: UserType::Individual,
         phone_number: None,
-        created_at: OffsetDateTime::now_utc(),
-        updated_at: None,
+        created: OffsetDateTime::now_utc(),
+        updated: None,
     };
 
     let users = vec![user, user_2];

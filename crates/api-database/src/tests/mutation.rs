@@ -16,8 +16,8 @@ fn create_user_item() -> User {
         avatar: None,
         user_type: UserType::Individual,
         phone_number: None,
-        created_at: OffsetDateTime::now_utc(),
-        updated_at: None,
+        created: OffsetDateTime::now_utc(),
+        updated: None,
     }
 }
 

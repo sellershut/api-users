@@ -22,17 +22,10 @@ pub struct User {
     pub avatar: Option<String>,
     pub user_type: UserType,
     pub phone_number: Option<String>,
-    #[cfg_attr(
-        feature = "async-graphql",
-        graphql(default_with = "default_date_time()")
-    )]
-    pub created_at: OffsetDateTime,
-    pub updated_at: Option<OffsetDateTime>,
-}
-
-#[cfg(feature = "async-graphql")]
-fn default_date_time() -> OffsetDateTime {
-    OffsetDateTime::now_utc()
+    #[cfg_attr(feature = "async-graphql", graphql(skip_input))]
+    pub created: isize,
+    #[cfg_attr(feature = "async-graphql", graphql(skip_input))]
+    pub updated: isize,
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Clone, Copy)]
@@ -50,7 +43,6 @@ pub enum UserType {
 pub struct Session {
     #[cfg_attr(feature = "async-graphql", graphql(skip_input))]
     pub id: Uuid,
-    pub user: Uuid,
     pub expires_at: OffsetDateTime,
     pub session_token: String,
 }
@@ -59,12 +51,10 @@ pub struct Session {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "async-graphql", derive(InputObject, SimpleObject))]
 #[cfg_attr(feature = "async-graphql", graphql(input_name = "AccountInput"))]
-pub struct Account {
+pub struct AccountProvider {
     #[cfg_attr(feature = "async-graphql", graphql(skip_input))]
     pub id: Uuid,
-    pub user: Uuid,
-    pub provider: String,
-    pub provider_account_id: String,
+    pub name: String,
 }
 
 pub mod reexports {

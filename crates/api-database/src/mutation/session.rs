@@ -4,7 +4,6 @@ use api_core::{
 };
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use surrealdb::opt::RecordId;
 use time::OffsetDateTime;
 use tracing::{debug, instrument};
 use uuid::Uuid;
@@ -14,12 +13,11 @@ use crate::{collections::Collection, entity::DatabaseEntitySession, map_db_error
 impl MutateSessions for Client {
     #[instrument(skip(self), err(Debug))]
     async fn create_session(&self, session: &Session) -> Result<Session, CoreError> {
-        let input_session = InputSession::from(session);
         let id = Uuid::now_v7().to_string();
         let item: Option<DatabaseEntitySession> = self
             .client
             .create((Collection::Session.to_string(), id))
-            .content(input_session)
+            .content(session)
             .await
             .map_err(map_db_error)?;
 
@@ -121,25 +119,5 @@ impl MutateSessions for Client {
         debug!("expired sessions deleted");
 
         Ok(())
-    }
-}
-
-#[derive(serde::Serialize)]
-struct InputSession<'a> {
-    user: RecordId,
-    expires_at: &'a OffsetDateTime,
-    session_token: &'a str,
-}
-
-impl<'a> From<&'a Session> for InputSession<'a> {
-    fn from(value: &'a Session) -> Self {
-        Self {
-            user: RecordId::from((
-                Collection::User.to_string().as_str(),
-                value.user.to_string().as_str(),
-            )),
-            expires_at: &value.expires_at,
-            session_token: &value.session_token,
-        }
     }
 }

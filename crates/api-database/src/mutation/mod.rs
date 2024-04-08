@@ -58,7 +58,7 @@ impl MutateUsers for Client {
         ));
 
         let mut input_user = InputUser::from(data);
-        input_user.updated_at = Some(OffsetDateTime::now_utc());
+        input_user.updated = Some(OffsetDateTime::now_utc().unix_timestamp_nanos());
 
         let item: Option<DatabaseEntityUser> = self
             .client
@@ -139,8 +139,7 @@ struct InputUser<'a> {
     name: Option<&'a str>,
     avatar: Option<&'a str>,
     user_type: UserType,
-    created_at: &'a OffsetDateTime,
-    updated_at: Option<OffsetDateTime>,
+    updated: Option<i128>,
 }
 
 impl<'a> From<&'a User> for InputUser<'a> {
@@ -151,8 +150,7 @@ impl<'a> From<&'a User> for InputUser<'a> {
             name: value.name.as_deref(),
             avatar: value.avatar.as_deref(),
             user_type: value.user_type,
-            created_at: &value.created_at,
-            updated_at: None,
+            updated: None,
         }
     }
 }
