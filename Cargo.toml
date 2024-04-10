@@ -5,7 +5,7 @@ resolver = "2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace.dependencies]
-anyhow = "1.0.81"
+anyhow = "1.0.82"
 api-core = { path = "./crates/api-core", default-features = false }
 api-database = { path = "./crates/api-database" }
 async-graphql = { version = "7.0.3", default-features = false }
