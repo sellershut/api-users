@@ -2,7 +2,7 @@ use api_core::api::{CoreError, MutateAccounts};
 use serde_json::json;
 use std::fmt::Debug;
 use surrealdb::sql::Thing;
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{collections::Collection, entity::DatabaseEntityAccountProvider, map_db_error, Client};
@@ -49,14 +49,12 @@ impl MutateAccounts for Client {
                     Collection::UserAccount,
                     provider_account_id.as_ref()
                 );
-                println!("{query}");
                 self.client.query(query)
             };
 
             let id: Option<Thing> = resp.take(0).map_err(map_db_error)?;
             if let Some(id) = id {
-                let res = create_account(id).await.map_err(map_db_error)?;
-                println!("{res:?}");
+                create_account(id).await.map_err(map_db_error)?;
             } else {
                 let id = Uuid::now_v7();
                 let account_provider: Option<DatabaseEntityAccountProvider> = self
@@ -72,7 +70,6 @@ impl MutateAccounts for Client {
                     let res = create_account(account_provider.id)
                         .await
                         .map_err(map_db_error)?;
-                    println!("{res:?}");
                 } else {
                     unreachable!("expected account provider to be returned");
                 }

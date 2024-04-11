@@ -3,8 +3,11 @@ use api_core::{
     Session,
 };
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
-use surrealdb::{opt::RecordId, sql::Thing};
+use std::{fmt::Debug, str::FromStr};
+use surrealdb::{
+    opt::RecordId,
+    sql::{Datetime, Thing},
+};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use tracing::{debug, instrument, warn};
 use uuid::Uuid;
@@ -21,11 +24,6 @@ impl MutateSessions for Client {
             ))
         };
 
-        let expires = &session
-            .expires_at
-            .format(&Rfc3339)
-            .expect("cannot format time");
-
         let user_id = create_id(&session.user_id);
 
         let stmt = Collection::UserSession;
@@ -36,11 +34,18 @@ impl MutateSessions for Client {
             .bind(("account_provider_table",Collection::AccountProvider))
             .bind(("provider", &session.account_provider.name)).await.map_err(map_db_error)?;
 
+        let dt = session
+            .expires_at
+            .format(&Rfc3339)
+            .ok()
+            .and_then(|val| Datetime::from_str(&val).ok())
+            .expect("");
+
         let id: Option<Thing> = resp.take(0).map_err(map_db_error)?;
         if let Some(id) = id {
-            let res =   self.client.query(format!("RELATE {user_id} -> {stmt} -> {id} SET session_token = type::string($session_token), expires_at = <datetime>type::datetime($expires);"))
+            self.client.query(format!("RELATE {user_id} -> {stmt} -> {id} SET session_token = type::string($session_token), expires_at = <datetime>type::datetime($expires);"))
             .bind(("session_token", &session.session_token))
-            .bind(("expires", &expires)).await.map_err(map_db_error)?;
+            .bind(("expires", dt)).await.map_err(map_db_error)?;
 
             debug!("session created");
         } else {

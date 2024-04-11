@@ -42,8 +42,6 @@ pub enum UserType {
 #[cfg_attr(feature = "async-graphql", derive(InputObject, SimpleObject))]
 #[cfg_attr(feature = "async-graphql", graphql(input_name = "SessionInput"))]
 pub struct Session {
-    #[cfg_attr(feature = "async-graphql", graphql(skip_input))]
-    pub id: Uuid,
     pub expires_at: OffsetDateTime,
     pub session_token: String,
     pub account_provider: AccountProvider,

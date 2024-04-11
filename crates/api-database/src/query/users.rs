@@ -4,10 +4,9 @@ use api_core::{
     Session, User,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::fmt::Debug;
 use surrealdb::sql::Thing;
-use time::OffsetDateTime;
+use time::{format_description::well_known::Iso8601, OffsetDateTime};
 use tracing::{debug, error, instrument};
 
 use crate::{
@@ -266,8 +265,7 @@ impl QueryUsers for Client {
 
         #[derive(Debug, Deserialize)]
         pub struct Root {
-            pub expires_at: OffsetDateTime,
-            pub id: Thing,
+            pub expires_at: String,
             #[serde(rename = "in")]
             pub in_field: DatabaseEntityUser,
             pub out: DatabaseEntityAccountProvider,
@@ -279,8 +277,7 @@ impl QueryUsers for Client {
         if let Some(val) = user {
             let user_id = record_id_to_uuid(&val.in_field.id)?;
             let session = Session {
-                id: record_id_to_uuid(&val.id)?,
-                expires_at: val.expires_at,
+                expires_at: OffsetDateTime::parse(&val.expires_at, &Iso8601::DEFAULT).expect(""),
                 session_token: val.session_token,
                 account_provider: api_core::AccountProvider {
                     id: record_id_to_uuid(&val.out.id)?,

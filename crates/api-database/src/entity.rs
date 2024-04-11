@@ -50,13 +50,10 @@ impl TryFrom<DatabaseEntitySession> for Session {
     type Error = CoreError;
 
     fn try_from(value: DatabaseEntitySession) -> Result<Self, Self::Error> {
-        let id = record_id_to_uuid(&value.id)?;
-
         let user_id = record_id_to_uuid(&value.in_field)?;
         let account_provider_id = record_id_to_uuid(&value.out.id)?;
 
         Ok(Session {
-            id,
             expires_at: value.expires_at,
             session_token: value.session_token,
             account_provider: AccountProvider {
