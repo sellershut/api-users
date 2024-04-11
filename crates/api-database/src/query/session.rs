@@ -21,8 +21,8 @@ impl QuerySessions for Client {
 
         let mut resp = self
             .client
-            .query("SELECT * FROM type::table($table) WHERE user = type::string($user)")
-            .bind(("table", Collection::Session))
+            .query("SELECT * FROM type::table($table) WHERE in = type::record($user)")
+            .bind(("table", Collection::UserSession))
             .bind(("user", create_id(user_id)))
             .await
             .map_err(map_db_error)?;

@@ -10,6 +10,7 @@ pub(crate) struct DatabaseEntityUser {
     pub email: Option<String>,
     pub name: Option<String>,
     pub avatar: Option<String>,
+    #[serde(rename = "type")]
     pub user_type: UserType,
     pub phone_number: Option<String>,
     pub created: isize,
@@ -19,7 +20,9 @@ pub(crate) struct DatabaseEntityUser {
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct DatabaseEntitySession {
     pub id: RecordId,
-    pub user: RecordId,
+    #[serde(rename = "in")]
+    pub in_field: RecordId,
+    pub out: DatabaseEntityAccountProvider,
     pub expires_at: OffsetDateTime,
     pub session_token: String,
 }
@@ -49,10 +52,18 @@ impl TryFrom<DatabaseEntitySession> for Session {
     fn try_from(value: DatabaseEntitySession) -> Result<Self, Self::Error> {
         let id = record_id_to_uuid(&value.id)?;
 
+        let user_id = record_id_to_uuid(&value.in_field)?;
+        let account_provider_id = record_id_to_uuid(&value.out.id)?;
+
         Ok(Session {
             id,
             expires_at: value.expires_at,
             session_token: value.session_token,
+            account_provider: AccountProvider {
+                id: account_provider_id,
+                name: value.out.name,
+            },
+            user_id,
         })
     }
 }

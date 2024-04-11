@@ -3,6 +3,7 @@ use api_database::Client;
 use async_graphql::{Context, Object};
 use time::OffsetDateTime;
 use tracing::instrument;
+use uuid::Uuid;
 
 #[derive(Default, Debug)]
 pub struct SessionMutation;
@@ -14,11 +15,12 @@ impl SessionMutation {
         &self,
         ctx: &Context<'_>,
         input: Session,
-    ) -> async_graphql::Result<Session> {
+    ) -> async_graphql::Result<String> {
         let database = ctx.data::<Client>()?;
 
-        let account = database.create_session(&input).await?;
-        Ok(account)
+        database.create_session(&input).await?;
+
+        Ok(String::from("session created"))
     }
 
     #[instrument(skip(ctx), err(Debug))]
@@ -53,11 +55,11 @@ impl SessionMutation {
     async fn delete_user_session(
         &self,
         ctx: &Context<'_>,
-        user_id: String,
+        user_id: Uuid,
     ) -> async_graphql::Result<String> {
         let database = ctx.data::<Client>()?;
 
-        database.delete_user_sessions(user_id).await?;
+        database.delete_user_sessions(&user_id).await?;
         Ok(String::from("user sessions cleared"))
     }
 }

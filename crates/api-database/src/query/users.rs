@@ -4,14 +4,15 @@ use api_core::{
     Session, User,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::fmt::Debug;
-use surrealdb::{opt::RecordId, sql::Thing};
+use surrealdb::sql::Thing;
 use time::OffsetDateTime;
-use tracing::{debug, error, instrument, trace};
+use tracing::{debug, error, instrument};
 
 use crate::{
     collections::Collection,
-    entity::{record_id_to_uuid, DatabaseEntityUser},
+    entity::{record_id_to_uuid, DatabaseEntityAccountProvider, DatabaseEntityUser},
     map_db_error,
     redis::{cache_keys::CacheKey, redis_query},
     Client,
@@ -254,91 +255,53 @@ impl QueryUsers for Client {
         session_token: impl AsRef<str> + Send + Debug,
     ) -> Result<Option<(User, Session)>, CoreError> {
         let session_token = session_token.as_ref();
-        let stmt = "SELECT *, user FROM type::table($table) WHERE session_token = type::string($session_token) FETCH user";
+
         let mut session = self
             .client
-            .query(stmt)
-            .bind(("table", Collection::Session))
+            .query("SELECT in.*,out.*,* FROM type::table($table) WHERE session_token = type::string($session_token)")
+            .bind(("table", Collection::UserSession))
             .bind(("session_token", session_token))
             .await
             .map_err(map_db_error)?;
-        let user: Option<serde_json::Value> = session.take(0).map_err(map_db_error)?;
-        trace!("user: {user:?}");
 
-        if let Some(user) = user {
-            match user {
-                serde_json::Value::Object(obj) => {
-                    let mut id = None;
-                    let mut expires: Option<OffsetDateTime> = None;
-                    let mut session_token = String::default();
-                    let mut user: Option<DatabaseEntityUser> = None;
+        #[derive(Debug, Deserialize)]
+        pub struct Root {
+            pub expires_at: OffsetDateTime,
+            pub id: Thing,
+            #[serde(rename = "in")]
+            pub in_field: DatabaseEntityUser,
+            pub out: DatabaseEntityAccountProvider,
+            pub session_token: String,
+        }
 
-                    for (key, value) in obj.into_iter() {
-                        match key.as_str() {
-                            "id" => {
-                                trace!("deserialising id: {value:?}");
-                                let id_val: RecordId =
-                                    serde_json::from_value(value).map_err(|_| {
-                                        CoreError::Other("deserialise session id".to_owned())
-                                    })?;
-                                trace!("id ok");
-                                id = Some(id_val);
-                            }
-                            "session_token" => {
-                                trace!("deserialising session: {value:?}");
-                                if let serde_json::Value::String(my_id) = value {
-                                    session_token = my_id;
-                                } else {
-                                    error!(key = %key.as_str(), "{value} which is not a string");
-                                }
-                                trace!("session ok");
-                            }
-                            "expires_at" => {
-                                trace!("sorting time: {value:?}");
-                                expires = Some(serde_json::from_value(value).map_err(|_| {
-                                    CoreError::Other("Could not deserialise time".to_owned())
-                                })?);
-                                trace!("time ok");
-                            }
-                            "user" => {
-                                trace!("deserialising user: {value:?}");
-                                if let serde_json::Value::Object(_) = value {
-                                    user = Some(
-                                        serde_json::from_value(value)
-                                            .map_err(|e| CoreError::Other(e.to_string()))?,
-                                    );
-                                } else {
-                                    error!("{key} should not exist in sessions");
-                                    unreachable!("this key type should not exist");
-                                }
-                                trace!("user ok");
-                            }
-                            _ => {
-                                error!("{key} should not exist in sessions");
-                                unreachable!("this key should not exist");
-                            }
-                        }
-                    }
-                    let id = id.expect("to exist");
+        let user: Option<Root> = session.take(0).map_err(map_db_error)?;
 
-                    let user = user.expect("user to exist for every session");
-                    let id = record_id_to_uuid(&id)?;
+        if let Some(val) = user {
+            let user_id = record_id_to_uuid(&val.in_field.id)?;
+            let session = Session {
+                id: record_id_to_uuid(&val.id)?,
+                expires_at: val.expires_at,
+                session_token: val.session_token,
+                account_provider: api_core::AccountProvider {
+                    id: record_id_to_uuid(&val.out.id)?,
+                    name: val.out.name,
+                },
+                user_id,
+            };
 
-                    let user = User::try_from(user)?;
-                    trace!("after {}", id);
+            let user = User {
+                id: user_id,
+                username: val.in_field.username,
+                email: val.in_field.email,
+                name: val.in_field.name,
+                avatar: val.in_field.avatar,
+                user_type: val.in_field.user_type,
+                phone_number: val.in_field.phone_number,
+                created: val.in_field.created,
+                updated: val.in_field.updated,
+            };
 
-                    let session = Session {
-                        id,
-                        expires_at: expires.expect("to exist"),
-                        session_token,
-                    };
-
-                    Ok(Some((user, session)))
-                }
-                _ => Err(CoreError::Database(
-                    "The query returned an unexpected type".to_owned(),
-                )),
-            }
+            Ok(Some((user, session)))
         } else {
             Ok(None)
         }

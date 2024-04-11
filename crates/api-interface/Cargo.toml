@@ -19,7 +19,7 @@ once_cell = "1.19.0"
 opentelemetry.workspace = true
 slab = "0.4.9"
 thiserror.workspace = true
-time.workspace = true
+time = { workspace = true, features = ["serde-human-readable"] }
 tracing.workspace = true
 uuid.workspace = true
 

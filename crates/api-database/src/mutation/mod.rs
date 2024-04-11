@@ -138,6 +138,7 @@ struct InputUser<'a> {
     email: Option<&'a str>,
     name: Option<&'a str>,
     avatar: Option<&'a str>,
+    #[serde(rename = "type")]
     user_type: UserType,
     updated: Option<i128>,
 }

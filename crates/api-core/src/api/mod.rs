@@ -41,8 +41,8 @@ pub trait LocalMutateUsers {
 pub trait LocalMutateAccounts {
     async fn link_account(
         &self,
-        provider: impl AsRef<str> + Send + Debug,
-        provider_account_id: impl AsRef<str> + Send + Debug,
+        provider: impl AsRef<str> + Send + Debug + Sync,
+        provider_account_id: impl AsRef<str> + Send + Debug + Sync,
         user_id: &Uuid,
     ) -> Result<(), CoreError>;
     async fn unlink_account(
@@ -62,16 +62,13 @@ pub trait LocalQuerySessions {
 
 #[trait_variant::make(MutateSessions: Send)]
 pub trait LocalMutateSessions {
-    async fn create_session(&self, session: &Session) -> Result<Session, CoreError>;
+    async fn create_session(&self, session: &Session) -> Result<(), CoreError>;
     async fn update_session(
         &self,
         id: impl AsRef<str> + Send + Debug,
         expires_at: &OffsetDateTime,
     ) -> Result<Option<Session>, CoreError>;
     async fn delete_session(&self, id: impl AsRef<str> + Send + Debug) -> Result<(), CoreError>;
-    async fn delete_user_sessions(
-        &self,
-        user_id: impl AsRef<str> + Send + Debug,
-    ) -> Result<(), CoreError>;
+    async fn delete_user_sessions(&self, user_id: &Uuid) -> Result<(), CoreError>;
     async fn delete_expired_sessions(&self) -> Result<(), CoreError>;
 }

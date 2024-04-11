@@ -20,6 +20,7 @@ pub struct User {
     pub email: Option<String>,
     pub name: Option<String>,
     pub avatar: Option<String>,
+    #[cfg_attr(feature = "serde", serde(rename = "type"))]
     pub user_type: UserType,
     pub phone_number: Option<String>,
     #[cfg_attr(feature = "async-graphql", graphql(skip_input))]
@@ -45,9 +46,11 @@ pub struct Session {
     pub id: Uuid,
     pub expires_at: OffsetDateTime,
     pub session_token: String,
+    pub account_provider: AccountProvider,
+    pub user_id: Uuid,
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Clone)]
+#[derive(Default, Debug, PartialEq, PartialOrd, Ord, Eq, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "async-graphql", derive(InputObject, SimpleObject))]
 #[cfg_attr(feature = "async-graphql", graphql(input_name = "AccountInput"))]

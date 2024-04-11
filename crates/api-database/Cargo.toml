@@ -18,7 +18,7 @@ serde.workspace = true
 serde_json = "1.0.115"
 surrealdb.workspace = true
 thiserror.workspace = true
-time.workspace = true
+time = { workspace = true, features = ["serde-human-readable"] }
 tracing.workspace = true
 uuid.workspace = true
 

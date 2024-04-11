@@ -4,31 +4,50 @@ use api_core::{
 };
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use time::OffsetDateTime;
-use tracing::{debug, instrument};
+use surrealdb::{opt::RecordId, sql::Thing};
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+use tracing::{debug, instrument, warn};
 use uuid::Uuid;
 
 use crate::{collections::Collection, entity::DatabaseEntitySession, map_db_error, Client};
 
 impl MutateSessions for Client {
     #[instrument(skip(self), err(Debug))]
-    async fn create_session(&self, session: &Session) -> Result<Session, CoreError> {
-        let id = Uuid::now_v7().to_string();
-        let item: Option<DatabaseEntitySession> = self
+    async fn create_session(&self, session: &Session) -> Result<(), CoreError> {
+        let create_id = |id: &Uuid| -> Thing {
+            Thing::from((
+                Collection::User.to_string().as_str(),
+                id.to_string().as_str(),
+            ))
+        };
+
+        let expires = &session
+            .expires_at
+            .format(&Rfc3339)
+            .expect("cannot format time");
+
+        let user_id = create_id(&session.user_id);
+
+        let stmt = Collection::UserSession;
+
+        let mut resp = self
             .client
-            .create((Collection::Session.to_string(), id))
-            .content(session)
-            .await
-            .map_err(map_db_error)?;
+            .query("SELECT VALUE id FROM type::table($account_provider_table) WHERE name = type::string($provider)")
+            .bind(("account_provider_table",Collection::AccountProvider))
+            .bind(("provider", &session.account_provider.name)).await.map_err(map_db_error)?;
 
-        let session = match item {
-            Some(e) => Session::try_from(e),
-            None => Err(CoreError::Unreachable),
-        }?;
+        let id: Option<Thing> = resp.take(0).map_err(map_db_error)?;
+        if let Some(id) = id {
+            let res =   self.client.query(format!("RELATE {user_id} -> {stmt} -> {id} SET session_token = type::string($session_token), expires_at = <datetime>type::datetime($expires);"))
+            .bind(("session_token", &session.session_token))
+            .bind(("expires", &expires)).await.map_err(map_db_error)?;
 
-        debug!("session created");
+            debug!("session created");
+        } else {
+            warn!("session not created");
+        };
 
-        Ok(session)
+        Ok(())
     }
 
     #[instrument(skip(self), err(Debug))]
@@ -47,17 +66,17 @@ impl MutateSessions for Client {
         let mut resp = self
             .client
             .query(
-                "SELECT * FROM type::table($table) WHERE session_token = type::string($session_token) LIMIT 1",
-            ).bind(("table", Collection::Session)).bind(("session_token", session_token))
+                "SELECT VALUE id FROM type::table($table) WHERE session_token = type::string($session_token) LIMIT 1",
+            ).bind(("table", Collection::UserSession)).bind(("session_token", session_token))
             .await
             .map_err(map_db_error)?;
 
-        let resp: Option<DatabaseEntitySession> = resp.take(0).map_err(map_db_error)?;
+        let resp: Option<RecordId> = resp.take(0).map_err(map_db_error)?;
 
         if let Some(session) = resp {
             let resp: Option<DatabaseEntitySession> = self
                 .client
-                .update(session.id)
+                .update(session)
                 .merge(Document {
                     expires_at: expires_at.to_owned(),
                 })
@@ -73,15 +92,18 @@ impl MutateSessions for Client {
 
             Ok(res)
         } else {
+            warn!("session not found");
             Ok(None)
         }
     }
 
     #[instrument(skip(self), err(Debug))]
     async fn delete_session(&self, id: impl AsRef<str> + Send + Debug) -> Result<(), CoreError> {
-        let _resp: Option<DatabaseEntitySession> = self
+        self
             .client
-            .delete((Collection::Session.to_string(), id.as_ref().to_string()))
+            .query("DELETE FROM type::table($table) WHERE session_token = type::string($session_token)")
+            .bind(("table", Collection::UserSession))
+            .bind(("session_token", id.as_ref()))
             .await
             .map_err(map_db_error)?;
 
@@ -91,15 +113,19 @@ impl MutateSessions for Client {
     }
 
     #[instrument(skip(self), err(Debug))]
-    async fn delete_user_sessions(
-        &self,
-        user_id: impl AsRef<str> + Send + Debug,
-    ) -> Result<(), CoreError> {
-        let user_id = user_id.as_ref();
+    async fn delete_user_sessions(&self, user_id: &Uuid) -> Result<(), CoreError> {
+        let create_id = |id: &Uuid| -> Thing {
+            Thing::from((
+                Collection::User.to_string().as_str(),
+                id.to_string().as_str(),
+            ))
+        };
+        let id = create_id(user_id);
+
         self.client
-            .query("DELETE * FROM type::table($table) WHERE user_id = type::string($user_id)")
-            .bind(("table", Collection::Session))
-            .bind(("user_id", user_id))
+            .query("DELETE * FROM type::table($table) WHERE in = type::record($user_id)")
+            .bind(("table", Collection::UserSession))
+            .bind(("user_id", id))
             .await
             .map_err(map_db_error)?;
 
@@ -112,7 +138,7 @@ impl MutateSessions for Client {
     async fn delete_expired_sessions(&self) -> Result<(), CoreError> {
         self.client
             .query("DELETE * FROM type::table($table) WHERE expires_at <= time::now()")
-            .bind(("table", Collection::Session))
+            .bind(("table", Collection::UserSession))
             .await
             .map_err(map_db_error)?;
 
