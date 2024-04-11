@@ -11,7 +11,7 @@ api-database = { path = "./crates/api-database" }
 async-graphql = { version = "7.0.3", default-features = false }
 async-graphql-axum = { version = "7.0.3" }
 async-stream = "0.3.5"
-async-trait = "0.1.79"
+async-trait = "0.1.80"
 criterion = "0.5.1"
 dotenvy = "0.15.7"
 fake = "2.9.2"
