@@ -1,4 +1,4 @@
-FROM rust:1.77.1-slim AS builder
+FROM rust:1.77.2-slim AS builder
 
 RUN rustup target add x86_64-unknown-linux-musl
 RUN apt update && apt install -y musl-tools musl-dev
