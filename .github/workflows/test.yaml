@@ -70,7 +70,7 @@ jobs:
         run: cargo generate-lockfile
       - name: apply db migrations
         run: |
-          namespaces=($TESTS_NS_CREATE $TESTS_NS_UPDATE $TESTS_NS_DELETE)
+          namespaces=($TESTS_NS_CREATE $TESTS_NS_UPDATE $TESTS_NS_DELETE $TEST_DATABASE_NAMESPACE)
           for namespace in "${namespaces[@]}"
           do
             surreal import --conn http://localhost:8000 --user $TEST_DATABASE_USERNAME --pass $TEST_DATABASE_PASSWORD --ns $namespace --db $TEST_DATABASE_NAME $DB_SCHEMA_PATH
@@ -135,7 +135,7 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: apply db migrations
         run: |
-          namespaces=($TESTS_NS_CREATE $TESTS_NS_UPDATE $TESTS_NS_DELETE)
+          namespaces=($TESTS_NS_CREATE $TESTS_NS_UPDATE $TESTS_NS_DELETE $TEST_DATABASE_NAMESPACE)
           for namespace in "${namespaces[@]}"
           do
             surreal import --conn http://localhost:8000 --user $TEST_DATABASE_USERNAME --pass $TEST_DATABASE_PASSWORD --ns $namespace --db $TEST_DATABASE_NAME $DB_SCHEMA_PATH
