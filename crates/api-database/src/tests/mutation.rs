@@ -6,7 +6,10 @@ use api_core::{
     User, UserType,
 };
 use fake::{
-    faker::internet::raw::{FreeEmail, Username},
+    faker::{
+        internet::raw::{FreeEmail, Username},
+        name::raw::Name,
+    },
     locales::EN,
     Fake,
 };
@@ -15,7 +18,7 @@ use time::OffsetDateTime;
 fn create_user_item() -> User {
     User {
         id: Uuid::now_v7(),
-        name: None,
+        name: Name(EN).fake(),
         username: Username(EN).fake(),
         email: FreeEmail(EN).fake(),
         avatar: None,

@@ -42,7 +42,6 @@ async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError
             if let Err(e) = redis_query::update(cache_key, redis, &users, None).await {
                 error!(key = %cache_key, "[redis update]: {e}");
             }
-
             users
         }
     } else {

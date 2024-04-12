@@ -57,7 +57,7 @@ impl MutateUsers for Client {
         let item: Option<DatabaseEntityUser> = self
             .client
             .update(id)
-            .content(input_user)
+            .merge(input_user)
             .await
             .map_err(map_db_error)?;
         let res = match item {
