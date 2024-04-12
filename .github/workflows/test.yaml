@@ -17,6 +17,10 @@ env:
   TEST_DATABASE_PASSWORD: root
   TEST_DATABASE_NAME: root
   TEST_DATABASE_NAMESPACE: ci-tests
+  TESTS_NS_CREATE: ns_create
+  TESTS_NS_UPDATE: ns_update
+  TESTS_NS_DELETE: ns_delete
+  DB_SCHEMA_PATH: "resources/database-schema.surql"
   TEST_REDIS_HOST: redis://localhost:6379
   MEILISEARCH_HOST: http://localhost:7700
   MEILISEARCH_API_KEY:
@@ -50,13 +54,13 @@ jobs:
       matrix:
         toolchain: [stable, beta]
     steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
       - name: install surreal
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://install.surrealdb.com | sh
           surreal start --log trace --auth --user $TEST_DATABASE_USERNAME --pass $TEST_DATABASE_PASSWORD memory &
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Install ${{ matrix.toolchain }}
         uses: dtolnay/rust-toolchain@master
         with:
@@ -64,6 +68,13 @@ jobs:
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
+      - name: apply db migrations
+        run: |
+          namespaces=($TESTS_NS_CREATE $TESTS_NS_UPDATE $TESTS_NS_DELETE)
+          for namespace in "${namespaces[@]}"
+          do
+            surreal import --conn http://localhost:8000 --user $TEST_DATABASE_USERNAME --pass $TEST_DATABASE_PASSWORD --ns $namespace --db $TEST_DATABASE_NAME $DB_SCHEMA_PATH
+          done
       - name: cargo test --locked
         run: cargo test --locked --all-features --all-targets
       - name: cargo test --doc
@@ -122,6 +133,14 @@ jobs:
           components: llvm-tools-preview
       - name: cargo install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
+      - name: apply db migrations
+        run: |
+          namespaces=($TESTS_NS_CREATE $TESTS_NS_UPDATE $TESTS_NS_DELETE)
+          for namespace in "${namespaces[@]}"
+          do
+            surreal import --conn http://localhost:8000 --user $TEST_DATABASE_USERNAME --pass $TEST_DATABASE_PASSWORD --ns $namespace --db $TEST_DATABASE_NAME $DB_SCHEMA_PATH
+          done
+      - uses: actions/checkout@v4
       - name: cargo llvm-cov
         run: cargo llvm-cov --workspace --locked --all-features --lcov --output-path lcov.info
       - name: Upload to codecov.io
