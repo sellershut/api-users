@@ -5,14 +5,18 @@ use api_core::{
     reexports::uuid::Uuid,
     User, UserType,
 };
-use fake::{faker::internet::raw::FreeEmail, locales::EN, Fake};
+use fake::{
+    faker::internet::raw::{FreeEmail, Username},
+    locales::EN,
+    Fake,
+};
 use time::OffsetDateTime;
 
 fn create_user_item() -> User {
     User {
         id: Uuid::now_v7(),
         name: None,
-        username: String::from("foobar"),
+        username: Username(EN).fake(),
         email: FreeEmail(EN).fake(),
         avatar: None,
         user_type: UserType::Individual,
@@ -31,7 +35,10 @@ fn check_similarities(source: &User, dest: &User) {
 
 #[tokio::test]
 async fn create_user() -> Result<()> {
-    let client = create_client(Some("test-mutation-create"), false, false).await?;
+    dotenvy::dotenv().ok();
+    let namespace = std::env::var("TESTS_NS_CREATE")?;
+
+    let client = create_client(Some(&namespace), false, false).await?;
 
     let all_users = client.get_users().await?;
 
@@ -51,9 +58,11 @@ async fn create_user() -> Result<()> {
 
 #[tokio::test]
 async fn create_get_by_id() -> Result<()> {
+    dotenvy::dotenv().ok();
     let user = create_user_item();
+    let namespace = std::env::var("TESTS_NS_UPDATE")?;
 
-    let client = create_client(Some("test-mutation-update"), false, false).await?;
+    let client = create_client(Some(&namespace), false, false).await?;
 
     let input = client.create_user(&user).await?;
     let id = input.id;
@@ -68,9 +77,12 @@ async fn create_get_by_id() -> Result<()> {
 
 #[tokio::test]
 async fn update_user() -> Result<()> {
+    dotenvy::dotenv().ok();
     let user = create_user_item();
 
-    let client = create_client(Some("test-mutation-update"), false, false).await?;
+    let namespace = std::env::var("TESTS_NS_UPDATE")?;
+
+    let client = create_client(Some(&namespace), false, false).await?;
 
     let input = client.create_user(&user).await?;
 
@@ -93,8 +105,11 @@ async fn update_user() -> Result<()> {
 
 #[tokio::test]
 async fn delete_user() -> Result<()> {
+    dotenvy::dotenv().ok();
     let user = create_user_item();
-    let client = create_client(Some("test-mutation-delete"), false, false).await?;
+    let namespace = std::env::var("TESTS_NS_DELETE")?;
+
+    let client = create_client(Some(&namespace), false, false).await?;
 
     let all_users = client.get_users().await?;
 
