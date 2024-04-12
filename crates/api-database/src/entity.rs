@@ -1,20 +1,48 @@
+use std::fmt;
+
 use api_core::{api::CoreError, reexports::uuid::Uuid, AccountProvider, Session, User, UserType};
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 use surrealdb::{opt::RecordId, sql::Id};
-use time::OffsetDateTime;
+use time::{format_description::well_known::Iso8601, OffsetDateTime};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct DatabaseEntityUser {
     pub id: RecordId,
     pub username: String,
-    pub email: Option<String>,
+    pub email: String,
     pub name: Option<String>,
     pub avatar: Option<String>,
     #[serde(rename = "type")]
     pub user_type: UserType,
     pub phone_number: Option<String>,
-    pub created: isize,
-    pub updated: isize,
+    #[serde(deserialize_with = "deserialize_date_time")]
+    pub created: OffsetDateTime,
+    #[serde(deserialize_with = "deserialize_date_time")]
+    pub updated: OffsetDateTime,
+}
+
+fn deserialize_date_time<'de, D>(deserializer: D) -> Result<OffsetDateTime, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    struct OffsetDateTimeVisitor;
+
+    impl<'de> de::Visitor<'de> for OffsetDateTimeVisitor {
+        type Value = OffsetDateTime;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a string containing a ISO8601 date")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            OffsetDateTime::parse(v, &Iso8601::DEFAULT).map_err(E::custom)
+        }
+    }
+
+    deserializer.deserialize_any(OffsetDateTimeVisitor)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -23,6 +51,7 @@ pub(crate) struct DatabaseEntitySession {
     #[serde(rename = "in")]
     pub in_field: RecordId,
     pub out: DatabaseEntityAccountProvider,
+    #[serde(deserialize_with = "deserialize_date_time")]
     pub expires_at: OffsetDateTime,
     pub session_token: String,
 }

@@ -5,6 +5,7 @@ use api_core::{
     reexports::uuid::Uuid,
     User, UserType,
 };
+use fake::{faker::internet::raw::FreeEmail, locales::EN, Fake};
 use time::OffsetDateTime;
 
 fn create_user_item() -> User {
@@ -12,12 +13,12 @@ fn create_user_item() -> User {
         id: Uuid::now_v7(),
         name: None,
         username: String::from("foobar"),
-        email: None,
+        email: FreeEmail(EN).fake(),
         avatar: None,
         user_type: UserType::Individual,
         phone_number: None,
         created: OffsetDateTime::now_utc(),
-        updated: None,
+        updated: OffsetDateTime::now_utc(),
     }
 }
 

@@ -37,17 +37,18 @@ impl MutateSessions for Client {
         let dt = session
             .expires_at
             .format(&Rfc3339)
-            .ok()
-            .and_then(|val| Datetime::from_str(&val).ok())
-            .expect("");
+            .map_err(|e| CoreError::Other(e.to_string()))
+            .map(|val| {
+                Datetime::from_str(&val).map_err(|_| {
+                    CoreError::Other(format!("could not parse date time from string: {val}"))
+                })
+            })??;
 
         let id: Option<Thing> = resp.take(0).map_err(map_db_error)?;
         if let Some(id) = id {
             self.client.query(format!("RELATE {user_id} -> {stmt} -> {id} SET session_token = type::string($session_token), expires_at = <datetime>type::datetime($expires);"))
             .bind(("session_token", &session.session_token))
             .bind(("expires", dt)).await.map_err(map_db_error)?;
-
-            debug!("session created");
         } else {
             warn!("session not created");
         };

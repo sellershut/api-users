@@ -9,7 +9,6 @@ use crate::telemetry::metrics::setup_metrics_recorder;
 
 pub struct AppState {
     pub port: u16,
-    pub otel_collector_endpoint: String,
     database_dsn: String,
     database_username: String,
     database_password: String,
@@ -29,8 +28,6 @@ impl AppState {
     #[instrument(name = "env.cfg")]
     pub fn try_from_env() -> Result<AppState> {
         let port: u16 = env::extract_variable("PORT", "3000").parse()?;
-        let otel_collector_endpoint =
-            env::extract_variable("OPENTELEMETRY_COLLECTOR_HOST", "http://localhost:4318");
 
         let (dsn, db_name, db_user, db_pass, db_ns, redis_host, redis_is_cluster) = {
             if cfg!(test) {
@@ -83,7 +80,6 @@ impl AppState {
 
         Ok(AppState {
             port,
-            otel_collector_endpoint,
             database_dsn,
             database_username,
             database_password,

@@ -77,7 +77,7 @@ impl QueryUsers for Client {
 
     #[instrument(skip(self), err(Debug))]
     async fn get_user_by_id(&self, id: &Uuid) -> Result<Option<User>, CoreError> {
-        if let Some((ref redis, _ttl)) = self.redis {
+        if let Some((ref redis, ttl)) = self.redis {
             let cache_key = CacheKey::UserById { id };
 
             let user = redis_query::query::<Option<User>>(cache_key, redis).await;
@@ -97,7 +97,9 @@ impl QueryUsers for Client {
                     }
                 });
 
-                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), None).await {
+                if let Err(e) =
+                    redis_query::update(cache_key, redis, user.as_ref(), Some(ttl)).await
+                {
                     error!(key = %cache_key, "[redis update]: {e}");
                 }
                 Ok(user)
@@ -124,7 +126,7 @@ impl QueryUsers for Client {
         email: impl AsRef<str> + Send + Debug,
     ) -> Result<Option<User>, CoreError> {
         let email = email.as_ref();
-        if let Some((ref redis, _ttl)) = self.redis {
+        if let Some((ref redis, ttl)) = self.redis {
             let cache_key = CacheKey::UserByEmail { email };
 
             let user = redis_query::query::<Option<User>>(cache_key, redis).await;
@@ -148,7 +150,9 @@ impl QueryUsers for Client {
                     }
                 });
 
-                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), None).await {
+                if let Err(e) =
+                    redis_query::update(cache_key, redis, user.as_ref(), Some(ttl)).await
+                {
                     error!(key = %cache_key, "[redis update]: {e}");
                 }
                 Ok(user)
@@ -188,7 +192,7 @@ impl QueryUsers for Client {
         }
 
         let stmt = "SELECT user FROM {} WHERE provider_account_id = type::string($provider_account_id) AND provider = type::string($provider) FETCH user";
-        if let Some((ref redis, _ttl)) = self.redis {
+        if let Some((ref redis, ttl)) = self.redis {
             let cache_key = CacheKey::UserByAccount {
                 provider,
                 provider_account_id,
@@ -215,7 +219,9 @@ impl QueryUsers for Client {
                     Some(User::try_from(user)?)
                 };
 
-                if let Err(e) = redis_query::update(cache_key, redis, user.as_ref(), None).await {
+                if let Err(e) =
+                    redis_query::update(cache_key, redis, user.as_ref(), Some(ttl)).await
+                {
                     error!(key = %cache_key, "[redis update]: {e}");
                 }
                 Ok(user)
@@ -265,6 +271,8 @@ impl QueryUsers for Client {
 
         #[derive(Debug, Deserialize)]
         pub struct Root {
+            #[serde(rename = "id")]
+            pub _id: Thing,
             pub expires_at: String,
             #[serde(rename = "in")]
             pub in_field: DatabaseEntityUser,

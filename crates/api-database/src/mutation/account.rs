@@ -35,7 +35,7 @@ impl MutateAccounts for Client {
             .await
             .map_err(map_db_error)?;
 
-        let account: Vec<DatabaseEntityAccountProvider> = resp.take(0).map_err(map_db_error)?;
+        let account: Vec<serde_json::Value> = resp.take(0).map_err(map_db_error)?;
 
         if account.first().is_none() {
             let user_id = create_id(user_id);
@@ -67,7 +67,7 @@ impl MutateAccounts for Client {
                     .map_err(map_db_error)?;
 
                 if let Some(account_provider) = account_provider {
-                    let res = create_account(account_provider.id)
+                    create_account(account_provider.id)
                         .await
                         .map_err(map_db_error)?;
                 } else {

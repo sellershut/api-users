@@ -1,13 +1,15 @@
 mod account;
 mod session;
 
+use std::str::FromStr;
+
 use api_core::{
     api::{CoreError, MutateUsers},
     reexports::uuid::Uuid,
     User, UserType,
 };
-use surrealdb::sql::Thing;
-use time::OffsetDateTime;
+use surrealdb::sql::{Datetime, Thing};
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use tracing::{error, instrument};
 
 use crate::{
@@ -35,15 +37,6 @@ impl MutateUsers for Client {
             Some(e) => {
                 let user = User::try_from(e)?;
 
-                if let Some((ref redis, _ttl)) = self.redis {
-                    let user_key = CacheKey::AllUsers;
-
-                    let mut redis = redis.get().await.unwrap();
-
-                    if let Err(e) = redis.del::<_, ()>(user_key).await {
-                        error!("{e}");
-                    }
-                }
                 Ok(user)
             }
             None => Err(CoreError::Unreachable),
@@ -58,7 +51,8 @@ impl MutateUsers for Client {
         ));
 
         let mut input_user = InputUser::from(data);
-        input_user.updated = Some(OffsetDateTime::now_utc().unix_timestamp_nanos());
+        let now = OffsetDateTime::now_utc().format(&Rfc3339).unwrap();
+        input_user.updated = Some(Datetime::from_str(&now).unwrap());
 
         let item: Option<DatabaseEntityUser> = self
             .client
@@ -78,10 +72,8 @@ impl MutateUsers for Client {
                     let mut pipeline = redis::Pipeline::new();
                     let refs = pipeline.del(user_key).del(user_key_2);
 
-                    if let Some(ref email) = user.email {
-                        let user_key_3 = CacheKey::UserByEmail { email };
-                        refs.del(user_key_3);
-                    }
+                    let user_key_3 = CacheKey::UserByEmail { email: &user.email };
+                    refs.del(user_key_3);
 
                     if let Err(e) = redis.query_async_pipeline::<()>(pipeline).await {
                         error!("{e}");
@@ -114,10 +106,8 @@ impl MutateUsers for Client {
                     let mut pipeline = redis::Pipeline::new();
                     let refs = pipeline.del(user_key).del(user_key_2);
 
-                    if let Some(ref email) = user.email {
-                        let user_key_3 = CacheKey::UserByEmail { email };
-                        refs.del(user_key_3);
-                    }
+                    let user_key_3 = CacheKey::UserByEmail { email: &user.email };
+                    refs.del(user_key_3);
 
                     if let Err(e) = redis.query_async_pipeline::<()>(pipeline).await {
                         error!("{e}");
@@ -135,19 +125,19 @@ impl MutateUsers for Client {
 #[derive(serde::Serialize)]
 struct InputUser<'a> {
     username: &'a str,
-    email: Option<&'a str>,
+    email: &'a str,
     name: Option<&'a str>,
     avatar: Option<&'a str>,
     #[serde(rename = "type")]
     user_type: UserType,
-    updated: Option<i128>,
+    updated: Option<Datetime>,
 }
 
 impl<'a> From<&'a User> for InputUser<'a> {
     fn from(value: &'a User) -> Self {
         Self {
             username: &value.username,
-            email: value.email.as_deref(),
+            email: value.email.as_ref(),
             name: value.name.as_deref(),
             avatar: value.avatar.as_deref(),
             user_type: value.user_type,

@@ -4,20 +4,28 @@ mod db;
 use crate::{tests::db::SampleDbSend, User, UserType};
 
 use self::db::SampleDb;
+use fake::{
+    faker::{
+        internet::raw::{FreeEmail, Username},
+        name::raw::Name,
+    },
+    locales::EN,
+    Fake,
+};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
 fn create_user() -> User {
     User {
         id: Uuid::now_v7(),
-        username: String::from("foobar"),
-        email: None,
-        name: Some(String::from("Something")),
+        username: Username(EN).fake(),
+        email: FreeEmail(EN).fake(),
+        name: Some(Name(EN).fake()),
         avatar: None,
         user_type: UserType::Individual,
         phone_number: None,
         created: OffsetDateTime::now_utc(),
-        updated: None,
+        updated: OffsetDateTime::now_utc(),
     }
 }
 
@@ -43,14 +51,14 @@ fn deserialise_list() {
 
     let user_2 = User {
         id: Uuid::now_v7(),
-        name: Some("Something".into()),
-        username: "barfoo".into(),
-        email: Some("user@email.com".into()),
+        username: Username(EN).fake(),
+        email: FreeEmail(EN).fake(),
+        name: Some(Name(EN).fake()),
         avatar: None,
         user_type: UserType::Individual,
         phone_number: None,
         created: OffsetDateTime::now_utc(),
-        updated: None,
+        updated: OffsetDateTime::now_utc(),
     };
 
     let users = vec![user, user_2];

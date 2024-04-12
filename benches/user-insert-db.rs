@@ -4,6 +4,11 @@ use api_database::Client;
 use api_core::{api::MutateUsers, User, UserType};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
+use fake::{
+    faker::internet::raw::{FreeEmail, Username},
+    locales::EN,
+    Fake,
+};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -39,14 +44,14 @@ fn bench(c: &mut Criterion) {
 
     let user = User {
         id: Uuid::now_v7(),
-        username: "foobar".into(),
-        email: None,
+        username: Username(EN).fake(),
+        email: FreeEmail(EN).fake(),
         name: None,
         avatar: None,
         user_type: UserType::Company,
         phone_number: None,
-        created_at: OffsetDateTime::now_utc(),
-        updated_at: None,
+        created: OffsetDateTime::now_utc(),
+        updated: OffsetDateTime::now_utc(),
     };
 
     c.bench_with_input(BenchmarkId::new("user insert", size), &size, |b, &_s| {

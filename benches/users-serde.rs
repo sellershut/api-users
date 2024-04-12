@@ -1,31 +1,33 @@
 use api_core::{User, UserType};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use fake::{faker::lorem::en::Words, Fake};
+use fake::{
+    faker::{
+        internet::raw::{FreeEmail, Username},
+        phone_number::raw::PhoneNumber,
+    },
+    locales::EN,
+    Fake,
+};
+
 use time::OffsetDateTime;
 use uuid::Uuid;
 
 fn bench(c: &mut Criterion) {
     let count = 24;
-    let mut users = Vec::with_capacity(count);
 
-    for _ in 0..count {
-        let words: Vec<String> = Words(1..5).fake();
-        let words = words.join(" ");
-
-        let user = User {
+    let users: Vec<_> = (0..count)
+        .map(|_| User {
             id: Uuid::now_v7(),
             name: None,
-            username: words,
-            email: None,
+            username: Username(EN).fake(),
+            email: FreeEmail(EN).fake(),
             avatar: None,
             user_type: UserType::Individual,
-            phone_number: None,
-            created_at: OffsetDateTime::now_utc(),
-            updated_at: None,
-        };
-
-        users.push(user);
-    }
+            phone_number: Some(PhoneNumber(EN).fake()),
+            created: OffsetDateTime::now_utc(),
+            updated: OffsetDateTime::now_utc(),
+        })
+        .collect();
 
     c.bench_function(&format!("serialise {count}"), |b| {
         b.iter(|| black_box(serde_json::to_string(&users)))

@@ -46,7 +46,7 @@ async fn gql_mutation() {
         .execute(
             r#"
               mutation {
-                input (user: {username: "Lorem", userType: INDIVIDUAL }) {
+                input (user: {username: "Lorem", email: "user@mail.com", userType: INDIVIDUAL }) {
                   username
                 }
               }
