@@ -1,7 +1,11 @@
 use core::panic;
 
 use async_graphql::Schema;
-use fake::{faker::internet::raw::FreeEmail, locales::EN};
+use fake::{
+    faker::internet::{en::Username, raw::FreeEmail},
+    locales::EN,
+    Fake,
+};
 
 use crate::graphql::{mutation::Mutation, query::Query, subscription::Subscription};
 
@@ -54,14 +58,13 @@ async fn execute_mutation(
 #[tokio::test]
 async fn gql_mutation() {
     let schema = super::init_schema().await;
-    use fake::{faker::lorem::en::Word, Fake};
-    let name = format!("\"{}\"", Word().fake::<String>());
+    let username = format!("\"{}\"", Username().fake::<String>());
     let email = format!("\"{}\"", FreeEmail(EN).fake::<String>());
 
     let create_mutation = format!(
         r"
             mutation {{
-              createUser(input: {{ username: {name}, email: {email}, userType: INDIVIDUAL }}) {{
+              createUser(input: {{ username: {username}, email: {email}, userType: INDIVIDUAL }}) {{
                 id
               }}
             }}
@@ -74,7 +77,7 @@ async fn gql_mutation() {
     let update_mutation = format!(
         r"
             mutation {{
-              updateUser(id: {id}, input: {{ username: {name}, email: {email}, userType: COMPANY }}) {{
+              updateUser(id: {id}, input: {{ username: {username}, email: {email}, userType: COMPANY }}) {{
                 id
               }}
             }}
