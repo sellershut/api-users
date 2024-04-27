@@ -39,8 +39,9 @@ impl MutateAccounts for Client {
 
         if account.first().is_none() {
             let user_id = create_id(user_id);
-            let mut resp =self.client
+            let mut resp = self.client
                 .query("SELECT value id FROM type::table($account_provider_table) WHERE name = type::string($name)")
+                .bind(("name", provider))
                 .bind(("account_provider_table", Collection::AccountProvider)).await.map_err(map_db_error)?;
 
             let create_account = |id: Thing| {
