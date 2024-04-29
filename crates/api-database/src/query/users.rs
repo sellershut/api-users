@@ -3,6 +3,7 @@ use api_core::{
     reexports::uuid::Uuid,
     Session, User,
 };
+use meilisearch_sdk::{SearchQuery, SearchResults};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use surrealdb::sql::Thing;
@@ -18,7 +19,10 @@ use crate::{
 };
 
 #[tracing::instrument(skip(db))]
-async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError> {
+async fn db_get_users(
+    db: &Client,
+    wait_for_completion: bool,
+) -> Result<std::vec::IntoIter<User>, CoreError> {
     event!(Level::TRACE, "getting all users");
     let users = if let Some((ref redis, _ttl)) = db.redis {
         let cache_key = CacheKey::AllUsers;
@@ -78,10 +82,18 @@ async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError
         let pk = "id";
         trace!(primary_key = pk, "adding documents");
 
-        index
+        let task = index
             .add_documents(&users, Some(pk))
             .await
             .map_err(|e| CoreError::Other(e.to_string()))?;
+
+        if wait_for_completion {
+            if let Err(e) = task.wait_for_completion(client, None, None).await {
+                error!("{e}");
+            } else {
+                event!(Level::INFO, user_count = %users.len(), primary_key = pk, "finished meilisearch indexing for users");
+            }
+        }
         event!(Level::INFO, user_count = %users.len(), primary_key = pk, "started meilisearch indexing for users");
     }
 
@@ -91,7 +103,7 @@ async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError
 impl QueryUsers for Client {
     #[instrument(skip(self), err(Debug))]
     async fn get_users(&self) -> Result<impl ExactSizeIterator<Item = User>, CoreError> {
-        db_get_users(self).await
+        db_get_users(self, false).await
     }
 
     #[instrument(skip(self), err(Debug))]
@@ -161,6 +173,7 @@ impl QueryUsers for Client {
         }
     }
 
+    #[instrument(skip(self), err(Debug))]
     async fn get_user_by_email(
         &self,
         email: impl AsRef<str> + Send + Debug,
@@ -236,6 +249,7 @@ impl QueryUsers for Client {
         }
     }
 
+    #[instrument(skip(self), err(Debug))]
     async fn get_user_by_account(
         &self,
         provider: impl AsRef<str> + Send + Debug,
@@ -258,6 +272,7 @@ impl QueryUsers for Client {
 
             let user = redis_query::query::<Option<User>>(cache_key, redis).await;
             if let Some(user) = user {
+                event!(Level::INFO, cache_key = %cache_key, "found user through cache");
                 Ok(user)
             } else {
                 let mut user_response = self
@@ -268,7 +283,9 @@ impl QueryUsers for Client {
                     .bind(("provider", provider))
                     .await
                     .map_err(map_db_error)?;
+                event!(Level::INFO, cache_key = %cache_key, "database queried");
                 let mut user_query: Vec<RetVal> = user_response.take(0).map_err(map_db_error)?;
+                trace!("mapping entities");
                 let user = if user_query.is_empty() {
                     None
                 } else {
@@ -281,6 +298,8 @@ impl QueryUsers for Client {
                     redis_query::update(cache_key, redis, user.as_ref(), Some(ttl)).await
                 {
                     error!(key = %cache_key, "[redis update]: {e}");
+                } else {
+                    event!(Level::ERROR, cache_key = %cache_key, "cache update failed");
                 }
                 Ok(user)
             }
@@ -293,7 +312,10 @@ impl QueryUsers for Client {
                 .bind(("provider", provider))
                 .await
                 .map_err(map_db_error)?;
+            event!(Level::INFO, "database queried");
+
             let mut user_query: Vec<RetVal> = user_response.take(0).map_err(map_db_error)?;
+            trace!("mapping entities");
             let user = if user_query.is_empty() {
                 None
             } else {
@@ -306,17 +328,70 @@ impl QueryUsers for Client {
         }
     }
 
+    #[instrument(skip(self), err(Debug))]
     async fn search(
         &self,
-        _query: impl AsRef<str> + Send + Debug,
+        query: impl AsRef<str> + Send + Debug,
     ) -> Result<impl ExactSizeIterator<Item = User>, CoreError> {
-        Ok(vec![].into_iter())
+        if let Some(ref client) = self.search_client {
+            let mut index = None;
+            for retries in 0..3 {
+                trace!("checking user search indexing retry {} of 3", {
+                    retries + 1
+                });
+                if let Ok(idx) = client.get_index("users").await {
+                    index = Some(idx);
+                    trace!("found search index");
+                    break;
+                }
+                let _users = db_get_users(self, true).await?;
+            }
+            match index {
+                Some(index) => {
+                    trace!("searching index");
+                    let query = SearchQuery::new(&index).with_query(query.as_ref()).build();
+
+                    let results: SearchResults<User> = index
+                        .execute_query(&query)
+                        .await
+                        .map_err(|e| CoreError::Other(e.to_string()))?;
+                    event!(Level::INFO, hits = results.hits.len(), "query results");
+
+                    let search_results: Vec<User> = results
+                        .hits
+                        .into_iter()
+                        .map(|hit| User {
+                            id: hit.result.id,
+                            name: hit.result.name,
+                            username: hit.result.username,
+                            email: hit.result.email,
+                            avatar: hit.result.avatar,
+                            user_type: hit.result.user_type,
+                            phone_number: hit.result.phone_number,
+                            created: hit.result.created,
+                            updated: hit.result.updated,
+                        })
+                        .collect();
+
+                    Ok(search_results.into_iter())
+                }
+                None => Err(CoreError::Other(
+                    "items could not be indexed for search".into(),
+                )),
+            }
+        } else {
+            Err(CoreError::Other(String::from(
+                "no client configured for search",
+            )))
+        }
     }
 
+    #[instrument(skip(self, session_token), err(Debug))]
     async fn get_session_and_user(
         &self,
         session_token: impl AsRef<str> + Send + Debug,
     ) -> Result<Option<(User, Session)>, CoreError> {
+        trace!("getting session and user by session token");
         let session_token = session_token.as_ref();
 
         let mut session = self
@@ -326,21 +401,24 @@ impl QueryUsers for Client {
             .bind(("session_token", session_token))
             .await
             .map_err(map_db_error)?;
+        event!(Level::INFO, "database queried");
 
         #[derive(Debug, Deserialize)]
-        pub struct Root {
+        struct Root {
             #[serde(rename = "id")]
-            pub _id: Thing,
-            pub expires_at: String,
+            _id: Thing,
+            expires_at: String,
             #[serde(rename = "in")]
-            pub in_field: DatabaseEntityUser,
-            pub out: DatabaseEntityAccountProvider,
-            pub session_token: String,
+            in_field: DatabaseEntityUser,
+            out: DatabaseEntityAccountProvider,
+            session_token: String,
         }
 
+        trace!("mapping entity");
         let user: Option<Root> = session.take(0).map_err(map_db_error)?;
 
         if let Some(val) = user {
+            event!(Level::INFO, id = %val._id, "found user");
             let user_id = record_id_to_uuid(&val.in_field.id)?;
             let session = Session {
                 expires_at: OffsetDateTime::parse(&val.expires_at, &Iso8601::DEFAULT).expect(""),
@@ -366,6 +444,7 @@ impl QueryUsers for Client {
 
             Ok(Some((user, session)))
         } else {
+            event!(Level::INFO, "user not found");
             Ok(None)
         }
     }
