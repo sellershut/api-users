@@ -14,6 +14,7 @@ use opentelemetry_semantic_conventions::resource::{
 use sentry::{ClientOptions, IntoDsn};
 use tokio::sync::oneshot::Sender;
 use tracing::{error, level_filters::LevelFilter, trace};
+use tracing_loki::url::Url;
 use tracing_subscriber::{filter::Targets, layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
 use crate::state::env::extract_variable;
@@ -38,12 +39,25 @@ pub fn init_tracer() -> anyhow::Result<sentry::ClientInitGuard> {
     #[cfg(debug_assertions)]
     let layer = layer.pretty();
 
+    #[cfg(debug_assertions)]
+    let environment = "dev";
+
+    #[cfg(not(debug_assertions))]
+    let environment = "prod";
+
+    let loki_host = extract_variable("LOKI_HOST", "http://localhost:3100");
+
+    let (loki_layer, task) = tracing_loki::builder()
+        .label("environment", environment)?
+        .build_url(Url::parse(&loki_host)?)?;
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| log_levels.into()),
         )
         .with(layer)
+        .with(loki_layer)
         .with(
             tracing_opentelemetry::layer()
                 .with_tracer(tracer)
@@ -62,6 +76,7 @@ pub fn init_tracer() -> anyhow::Result<sentry::ClientInitGuard> {
             }
         }
     });
+    tokio::spawn(task);
 
     Ok(sentry_guard)
 }
