@@ -3,7 +3,7 @@ use std::fmt::Display;
 use api_core::reexports::uuid::Uuid;
 use redis::ToRedisArgs;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum CacheKey<'a> {
     AllUsers,
     Session {

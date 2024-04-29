@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use surrealdb::sql::Thing;
 use time::{format_description::well_known::Iso8601, OffsetDateTime};
-use tracing::{debug, error, instrument};
+use tracing::{debug, error, event, instrument, trace, Level};
 
 use crate::{
     collections::Collection,
@@ -16,31 +16,40 @@ use crate::{
     redis::{cache_keys::CacheKey, redis_query},
     Client,
 };
-pub fn create_id(collection: Collection, id: &Uuid) -> Thing {
-    Thing::from((collection.to_string().as_str(), id.to_string().as_str()))
-}
 
+#[tracing::instrument(skip(db))]
 async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError> {
+    event!(Level::TRACE, "getting all users");
     let users = if let Some((ref redis, _ttl)) = db.redis {
         let cache_key = CacheKey::AllUsers;
         let users = redis_query::query::<Vec<User>>(cache_key, redis).await;
 
         if let Some(users) = users {
+            event!(Level::INFO, cache_key = %cache_key, user_count = %users.len(), "found users through cache");
             users
         } else {
+            trace!("no users found in cache, trying database call");
+            debug!(cache_key = %cache_key, "no hits found in cache");
             let users: Vec<DatabaseEntityUser> = db
                 .client
                 .select(Collection::User)
                 .await
                 .map_err(map_db_error)?;
+            trace!("database query completed. Mapping entities to public types...");
+            event!(Level::DEBUG, user_count = %users.len(), "queried database...");
 
             let users = users
                 .into_iter()
                 .map(User::try_from)
                 .collect::<Result<Vec<User>, CoreError>>()?;
+            trace!("entities mapped");
+
+            event!(Level::INFO, user_count = %users.len(), "found users from database");
 
             if let Err(e) = redis_query::update(cache_key, redis, &users, None).await {
                 error!(key = %cache_key, "[redis update]: {e}");
+            } else {
+                event!(Level::INFO, cache_key= %cache_key, user_count = %users.len(), "cached users from database");
             }
             users
         }
@@ -50,19 +59,30 @@ async fn db_get_users(db: &Client) -> Result<std::vec::IntoIter<User>, CoreError
             .select(Collection::User)
             .await
             .map_err(map_db_error)?;
-        users
+        event!(Level::DEBUG, user_count = %users.len(), "queried database...");
+        trace!("database query completed. Mapping entities to public types...");
+
+        let users = users
             .into_iter()
             .map(User::try_from)
-            .collect::<Result<Vec<User>, CoreError>>()?
+            .collect::<Result<Vec<User>, CoreError>>()?;
+        trace!("entities mapped");
+
+        event!(Level::INFO, user_count = %users.len(), "found users from database");
+        users
     };
 
     if let Some(ref client) = db.search_client {
-        debug!("indexing users for search");
+        trace!("indexing users for search");
         let index = client.index("users");
+        let pk = "id";
+        trace!(primary_key = pk, "adding documents");
+
         index
-            .add_documents(&users, Some("id"))
+            .add_documents(&users, Some(pk))
             .await
             .map_err(|e| CoreError::Other(e.to_string()))?;
+        event!(Level::INFO, user_count = %users.len(), primary_key = pk, "started meilisearch indexing for users");
     }
 
     Ok(users.into_iter())
@@ -76,18 +96,28 @@ impl QueryUsers for Client {
 
     #[instrument(skip(self), err(Debug))]
     async fn get_user_by_id(&self, id: &Uuid) -> Result<Option<User>, CoreError> {
+        trace!("getting user by id");
         if let Some((ref redis, ttl)) = self.redis {
             let cache_key = CacheKey::UserById { id };
+            trace!(cache_key = %cache_key, "checking cache");
 
             let user = redis_query::query::<Option<User>>(cache_key, redis).await;
 
             if let Some(user) = user {
+                event!(Level::INFO, cache_key = %cache_key, "found user through cache");
                 Ok(user)
             } else {
-                let id = create_id(Collection::User, id);
+                event!(Level::TRACE, cache_key = %cache_key, "user not found in cache");
+                trace!("no users found in cache, trying database call");
 
-                let user: Option<DatabaseEntityUser> =
-                    self.client.select(id).await.map_err(map_db_error)?;
+                let user: Option<DatabaseEntityUser> = self
+                    .client
+                    .select((Collection::User.to_string(), id.to_string()))
+                    .await
+                    .map_err(map_db_error)?;
+                event!(Level::DEBUG, user= ?user, "database queried");
+                trace!("database query completed. Mapping entity to public type...");
+
                 let user = user.and_then(|f| match User::try_from(f) {
                     Ok(cat) => Some(cat),
                     Err(e) => {
@@ -95,19 +125,27 @@ impl QueryUsers for Client {
                         None
                     }
                 });
+                trace!("entity mapped");
+
+                event!(Level::INFO, user = ?user, "user from database");
 
                 if let Err(e) =
                     redis_query::update(cache_key, redis, user.as_ref(), Some(ttl)).await
                 {
                     error!(key = %cache_key, "[redis update]: {e}");
+                    event!(Level::ERROR, cache_key = %cache_key, user = ?user, "failed to update cache");
                 }
                 Ok(user)
             }
         } else {
-            let id = create_id(Collection::User, id);
+            let user: Option<DatabaseEntityUser> = self
+                .client
+                .select((Collection::User.to_string(), id.to_string()))
+                .await
+                .map_err(map_db_error)?;
+            event!(Level::DEBUG, user = ?user, "database queried");
+            trace!("database query completed. Mapping entity to public type...");
 
-            let user: Option<DatabaseEntityUser> =
-                self.client.select(id).await.map_err(map_db_error)?;
             let user = user.and_then(|f| match User::try_from(f) {
                 Ok(cat) => Some(cat),
                 Err(e) => {
@@ -115,6 +153,9 @@ impl QueryUsers for Client {
                     None
                 }
             });
+            trace!("entity mapped");
+
+            event!(Level::INFO, "found user from database");
 
             Ok(user)
         }
@@ -124,15 +165,22 @@ impl QueryUsers for Client {
         &self,
         email: impl AsRef<str> + Send + Debug,
     ) -> Result<Option<User>, CoreError> {
+        trace!("getting user by id");
         let email = email.as_ref();
         if let Some((ref redis, ttl)) = self.redis {
             let cache_key = CacheKey::UserByEmail { email };
+            trace!(cache_key = %cache_key, "checking cache");
 
             let user = redis_query::query::<Option<User>>(cache_key, redis).await;
 
             if let Some(Some(user)) = user {
+                event!(Level::INFO, cache_key = %cache_key, "found user through cache");
+
                 Ok(Some(user))
             } else {
+                event!(Level::TRACE, cache_key = %cache_key, "user not found in cache");
+                trace!("no users found in cache, trying database call");
+
                 let mut user = self
                     .client
                     .query("SELECT * FROM type::table($table) WHERE email = type::string($email)")
@@ -140,6 +188,9 @@ impl QueryUsers for Client {
                     .bind(("email", email))
                     .await
                     .map_err(map_db_error)?;
+                event!(Level::DEBUG, user = ?user, "database queried");
+                trace!("database query completed. Mapping entity to public type...");
+
                 let user: Option<DatabaseEntityUser> = user.take(0).map_err(map_db_error)?;
                 let user = user.and_then(|f| match User::try_from(f) {
                     Ok(cat) => Some(cat),
@@ -148,11 +199,14 @@ impl QueryUsers for Client {
                         None
                     }
                 });
+                trace!("entity mapped");
+                event!(Level::INFO, user = ?user, "user from database");
 
                 if let Err(e) =
                     redis_query::update(cache_key, redis, user.as_ref(), Some(ttl)).await
                 {
                     error!(key = %cache_key, "[redis update]: {e}");
+                    event!(Level::ERROR, cache_key = %cache_key, user = ?user, "failed to update cache");
                 }
                 Ok(user)
             }
@@ -164,6 +218,10 @@ impl QueryUsers for Client {
                 .bind(("email", email))
                 .await
                 .map_err(map_db_error)?;
+            trace!("database query completed. Mapping entity to public type...");
+
+            event!(Level::DEBUG, user = ?user, "database queried");
+
             let user: Option<DatabaseEntityUser> = user.take(0).map_err(map_db_error)?;
             let user = user.and_then(|f| match User::try_from(f) {
                 Ok(cat) => Some(cat),
@@ -172,6 +230,7 @@ impl QueryUsers for Client {
                     None
                 }
             });
+            event!(Level::INFO, user = ?user, "response prepared");
 
             Ok(user)
         }
