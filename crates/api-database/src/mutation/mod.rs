@@ -10,7 +10,7 @@ use api_core::{
 };
 use surrealdb::sql::{Datetime, Thing};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
-use tracing::{error, instrument};
+use tracing::{error, event, instrument, trace, Level};
 
 use crate::{
     collections::Collection,
@@ -23,15 +23,19 @@ use crate::{
 impl MutateUsers for Client {
     #[instrument(skip(self), err(Debug))]
     async fn create_user(&self, user: &User) -> Result<User, CoreError> {
+        trace!("creating user");
         let input_user = InputUser::from(user);
 
         let id = Uuid::now_v7().to_string();
+        trace!(id = %id, "generated id");
+
         let item: Option<DatabaseEntityUser> = self
             .client
-            .create((Collection::User.to_string(), id))
+            .create((Collection::User.to_string(), &id))
             .content(input_user)
             .await
             .map_err(map_db_error)?;
+        event!(Level::INFO, id = %id, "user created");
 
         match item {
             Some(e) => {
@@ -45,14 +49,18 @@ impl MutateUsers for Client {
 
     #[instrument(skip(self, id), err(Debug))]
     async fn update_user(&self, id: &Uuid, data: &User) -> Result<Option<User>, CoreError> {
+        trace!("updating user");
         let id = Thing::from((
             Collection::User.to_string().as_str(),
             id.to_string().as_str(),
         ));
 
         let mut input_user = InputUser::from(data);
-        let now = OffsetDateTime::now_utc().format(&Rfc3339).unwrap();
-        input_user.updated = Some(Datetime::from_str(&now).unwrap());
+        trace!("calculating updated time");
+        let now = OffsetDateTime::now_utc()
+            .format(&Rfc3339)
+            .expect("date time conversion");
+        input_user.updated = Some(Datetime::from_str(&now).expect("date time conversion"));
 
         let item: Option<DatabaseEntityUser> = self
             .client
@@ -60,6 +68,8 @@ impl MutateUsers for Client {
             .merge(input_user)
             .await
             .map_err(map_db_error)?;
+        event!(Level::INFO, "updated user");
+
         let res = match item {
             Some(e) => {
                 let user = User::try_from(e)?;
@@ -67,16 +77,19 @@ impl MutateUsers for Client {
                 if let Some((ref redis, _ttl)) = self.redis {
                     let user_key = CacheKey::UserById { id: &user.id };
                     let user_key_2 = CacheKey::AllUsers;
+                    let user_key_3 = CacheKey::UserByEmail { email: &user.email };
+                    trace!(keys = ?[user_key, user_key_2, user_key_3], "resetting cache");
 
-                    let mut redis = redis.get().await.unwrap();
+                    let mut redis = redis.get().await.expect("cache from pool");
                     let mut pipeline = redis::Pipeline::new();
                     let refs = pipeline.del(user_key).del(user_key_2);
 
-                    let user_key_3 = CacheKey::UserByEmail { email: &user.email };
                     refs.del(user_key_3);
 
                     if let Err(e) = redis.query_async_pipeline::<()>(pipeline).await {
                         error!("{e}");
+                    } else {
+                        event!(Level::INFO, keys = ?[user_key, user_key_2, user_key_3], "cache cleared due to update");
                     }
                 }
                 Some(user)
@@ -89,24 +102,28 @@ impl MutateUsers for Client {
 
     #[instrument(skip(self, id), err(Debug))]
     async fn delete_user(&self, id: &Uuid) -> Result<Option<User>, CoreError> {
+        trace!("deleting user");
         let id = Thing::from((
             Collection::User.to_string().as_str(),
             id.to_string().as_ref(),
         ));
 
         let res: Option<DatabaseEntityUser> = self.client.delete(id).await.map_err(map_db_error)?;
+        event!(Level::INFO, "user deleted");
+
         let res = match res {
             Some(e) => {
                 let user = User::try_from(e)?;
                 if let Some((ref redis, _ttl)) = self.redis {
                     let user_key = CacheKey::UserById { id: &user.id };
                     let user_key_2 = CacheKey::AllUsers;
+                    let user_key_3 = CacheKey::UserByEmail { email: &user.email };
 
-                    let mut redis = redis.get().await.unwrap();
+                    let mut redis = redis.get().await.expect("cache from pool");
                     let mut pipeline = redis::Pipeline::new();
                     let refs = pipeline.del(user_key).del(user_key_2);
 
-                    let user_key_3 = CacheKey::UserByEmail { email: &user.email };
+                    trace!(keys = ?[user_key, user_key_2, user_key_3], "resetting cache");
                     refs.del(user_key_3);
 
                     if let Err(e) = redis.query_async_pipeline::<()>(pipeline).await {

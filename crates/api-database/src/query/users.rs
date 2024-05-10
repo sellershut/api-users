@@ -3,7 +3,7 @@ use api_core::{
     reexports::uuid::Uuid,
     Session, User,
 };
-use meilisearch_sdk::{SearchQuery, SearchResults};
+use meilisearch_sdk::search::{SearchQuery, SearchResults};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use surrealdb::sql::Thing;
