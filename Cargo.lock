@@ -342,7 +342,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "strum 0.26.2",
+ "strum",
  "syn 2.0.58",
  "thiserror",
 ]
@@ -1662,6 +1662,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "h2"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "816ec7294445779408f36fe57bc5b7fc1cf59664059096c65f905c1c61f58069"
+dependencies = [
+ "bytes",
+ "fnv",
+ "futures-core",
+ "futures-sink",
+ "futures-util",
+ "http 1.1.0",
+ "indexmap 2.2.6",
+ "slab",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "half"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1823,7 +1842,7 @@ dependencies = [
  "futures-channel",
  "futures-core",
  "futures-util",
- "h2",
+ "h2 0.3.26",
  "http 0.2.12",
  "http-body 0.4.6",
  "httparse",
@@ -1846,6 +1865,7 @@ dependencies = [
  "bytes",
  "futures-channel",
  "futures-util",
+ "h2 0.4.4",
  "http 1.1.0",
  "http-body 1.0.0",
  "httparse",
@@ -2069,12 +2089,13 @@ dependencies = [
 
 [[package]]
 name = "jsonwebtoken"
-version = "8.3.0"
+version = "9.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6971da4d9c3aa03c3d8f3ff0f4155b534aad021292003895a469716b2a230378"
+checksum = "b9ae10193d25051e74945f1ea2d0b42e03cc3b890f7e4cc5faa44997d808193f"
 dependencies = [
  "base64 0.21.7",
- "ring 0.16.20",
+ "js-sys",
+ "ring 0.17.8",
  "serde",
  "serde_json",
 ]
@@ -2203,39 +2224,41 @@ dependencies = [
 
 [[package]]
 name = "meilisearch-index-setting-macro"
-version = "0.24.3"
-source = "git+https://github.com/rtkay123/meilisearch-rust?branch=request_clients#d6ac8247dfd51170fe90cccd846e87e94bebd9dd"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb7f4b1ef00bd5c38160d5664595d2869d17cafad435e817af7befb4521c0485"
 dependencies = [
  "convert_case",
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "structmeta",
+ "syn 2.0.58",
 ]
 
 [[package]]
 name = "meilisearch-sdk"
-version = "0.24.3"
-source = "git+https://github.com/rtkay123/meilisearch-rust?branch=request_clients#d6ac8247dfd51170fe90cccd846e87e94bebd9dd"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7443e8145e6f7047752f4983a97fccab01131947601825d95fe4088ad6d1feb9"
 dependencies = [
  "async-trait",
+ "bytes",
  "either",
  "futures",
  "futures-io",
- "futures-timer",
- "http 0.2.12",
  "iso8601",
  "jsonwebtoken",
- "lazy_static",
  "log",
  "meilisearch-index-setting-macro",
- "reqwest 0.11.27",
+ "pin-project-lite",
+ "reqwest 0.12.3",
  "serde",
  "serde_json",
- "strum 0.25.0",
  "thiserror",
  "time",
- "url",
  "uuid",
+ "wasm-bindgen-futures",
+ "web-sys",
  "yaup",
 ]
 
@@ -3230,7 +3253,7 @@ dependencies = [
  "encoding_rs",
  "futures-core",
  "futures-util",
- "h2",
+ "h2 0.3.26",
  "http 0.2.12",
  "http-body 0.4.6",
  "hyper 0.14.28",
@@ -3274,6 +3297,7 @@ dependencies = [
  "futures-channel",
  "futures-core",
  "futures-util",
+ "h2 0.4.4",
  "http 1.1.0",
  "http-body 1.0.0",
  "http-body-util",
@@ -3296,10 +3320,12 @@ dependencies = [
  "sync_wrapper 0.1.2",
  "tokio",
  "tokio-rustls 0.25.0",
+ "tokio-util",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-streams",
  "web-sys",
  "webpki-roots 0.26.1",
  "winreg 0.52.0",
@@ -4033,12 +4059,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
-name = "strum"
-version = "0.25.0"
+name = "structmeta"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
+checksum = "2e1575d8d40908d70f6fd05537266b90ae71b15dbbe7a8b7dffa2b759306d329"
 dependencies = [
- "strum_macros 0.25.3",
+ "proc-macro2",
+ "quote",
+ "structmeta-derive",
+ "syn 2.0.58",
+]
+
+[[package]]
+name = "structmeta-derive"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "152a0b65a590ff6c3da95cabe2353ee04e6167c896b28e3b14478c2636c922fc"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.58",
 ]
 
 [[package]]
@@ -4047,20 +4087,7 @@ version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d8cec3501a5194c432b2b7976db6b7d10ec95c253208b45f83f7136aa985e29"
 dependencies = [
- "strum_macros 0.26.2",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.25.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 2.0.58",
+ "strum_macros",
 ]
 
 [[package]]
@@ -4539,7 +4566,7 @@ dependencies = [
  "axum 0.6.20",
  "base64 0.21.7",
  "bytes",
- "h2",
+ "h2 0.3.26",
  "http 0.2.12",
  "http-body 0.4.6",
  "hyper 0.14.28",

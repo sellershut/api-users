@@ -23,7 +23,7 @@ pub(crate) fn map_db_error(error: surrealdb::Error) -> CoreError {
 pub struct Client {
     client: Surreal<SurrealClient>,
     redis: Option<(RedisPool, u64)>,
-    search_client: Option<meilisearch_sdk::Client>,
+    search_client: Option<meilisearch_sdk::client::Client>,
 }
 
 impl Client {
@@ -47,8 +47,14 @@ impl Client {
 
         Ok(Client {
             client: db,
-            search_client: meilisearch
-                .map(|(host, api_key)| meilisearch_sdk::Client::new(host, api_key)),
+            search_client: match meilisearch {
+                Some((host, api_key)) => Some(
+                    meilisearch_sdk::client::Client::new(host, api_key)
+                        .map_err(|e| ClientError::Other(e.to_string()))?,
+                ),
+                None => None,
+            },
+
             redis: match redis {
                 Some((dsn, clustered, size, ttl)) => Some((
                     if clustered {
@@ -69,7 +75,7 @@ pub enum ClientError {
     #[error("database engine error")]
     Engine(#[from] surrealdb::Error),
     #[error("the data for key `{0}` is not available")]
-    Redaction(String),
+    Other(String),
     #[error("invalid header (expected {expected:?}, found {found:?})")]
     InvalidHeader { expected: String, found: String },
     #[error("unknown data store error")]
