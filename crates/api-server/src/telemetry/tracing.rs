@@ -49,6 +49,8 @@ pub fn init_tracer() -> anyhow::Result<sentry::ClientInitGuard> {
 
     let (loki_layer, task) = tracing_loki::builder()
         .label("environment", environment)?
+        .label("app_name", pkg_name)?
+        .label("app_version", pkg_ver)?
         .build_url(Url::parse(&loki_host)?)?;
 
     tracing_subscriber::registry()
