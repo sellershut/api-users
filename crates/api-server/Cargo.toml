@@ -13,7 +13,7 @@ async-graphql-axum.workspace = true
 axum = { version = "0.7.5", features = ["macros", "ws"] }
 dotenvy.workspace = true
 metrics = { version = "0.22.3", default-features = false }
-metrics-exporter-prometheus = { version = "0.14.0", default-features = false }
+metrics-exporter-prometheus = { version = "0.15.0", default-features = false }
 opentelemetry.workspace = true
 opentelemetry-otlp = "0.15.0"
 opentelemetry-semantic-conventions = { version = "0.14.0", default-features = false }
