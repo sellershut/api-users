@@ -23,7 +23,7 @@ tower-http = { version = "0.5.2", features = ["cors", "trace"] }
 tracing.workspace = true
 tracing-opentelemetry = "0.23.0"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-sentry = { version = "0.32.3", default-features = false, features = ["reqwest", "rustls", "tower", "tracing"] }
+sentry = { version = "0.34.0", default-features = false, features = ["reqwest", "rustls", "tower", "tracing"] }
 tracing-loki = { version = "0.2.4", default-features = false, features = ["rustls", "compat-0-2-1"] }
 
 [dev-dependencies]
